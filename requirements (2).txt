@@ -1,5 +1,0 @@
-pyrofork
-tgcrypto
-pymongo
-python-dotenv
-motor
