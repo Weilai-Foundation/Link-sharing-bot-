@@ -35,7 +35,7 @@ def get_start_keyboard():
         ],
         [
             InlineKeyboardButton("📢 𝖢𝗁𝖺𝗇𝗇𝖾𝗅", url="https://t.me/Vecna_Bots"),
-            InlineKeyboardButton("👥 𝖲𝗎𝗉𝗉𝗈𝗋𝗍", url="https://t.me/Bots_Nation")
+            InlineKeyboardButton("👥 𝖲𝗎𝗉𝗉𝗈𝗋𝗍", url="https://t.me/Vecna_Suppprt")
         ]
     ])
 
@@ -61,7 +61,7 @@ async def callback_query_handler(client: Client, callback_query):
             "• 𝖲𝗎𝗉𝗉𝗈𝗋𝗍 𝖿𝗈𝗋 𝖼𝗁𝖺𝗇𝗇𝖾𝗅𝗌, 𝗀𝗋𝗈𝗎𝗉𝗌, 𝖺𝗇𝖽 𝗌𝗎𝗉𝖾𝗋𝗀𝗋𝗈𝗎𝗉𝗌\n"
             "• 𝖬𝗎𝗅𝗍𝗂-𝖻𝗈𝗍 𝖼𝗅𝗈𝗇𝗂𝗇𝗀 𝗌𝗎𝗉𝗉𝗈𝗋𝗍 (𝗎𝗉 𝗍𝗈 100 𝖻𝗈𝗍𝗌)\n"
             "• 𝖠𝖽𝗆𝗂𝗇 𝗆𝖺𝗇𝖺𝗀𝖾𝗆𝖾𝗇𝗍 𝗌𝗒𝗌𝗍𝖾𝗆\n\n"
-            "<b>𝖣𝖾𝗏𝖾𝗅𝗈𝗉𝖾𝗋:</b> @Vecna\n"
+            "<b>𝖣𝖾𝗏𝖾𝗅𝗈𝗉𝖾𝗋:</b> @Vecna_Bots\n"
             "<b>𝖯𝗈𝗐𝖾𝗋𝖾𝖽 𝖻𝗒:</b> @Vecna_Bots"
         )
         await callback_query.message.edit_caption(
