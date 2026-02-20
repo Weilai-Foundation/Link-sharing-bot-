@@ -1,7 +1,7 @@
 from pyrogram import Client, filters, idle
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from pyrogram.enums import ChatType
-from pyrogram.handlers import MessageHandler
+from pyrogram.handlers import MessageHandler, CallbackQueryHandler
 from pyrogram.errors import TokenInvalid
 import asyncio
 from datetime import datetime, timedelta, timezone
@@ -49,7 +49,7 @@ def get_back_button_keyboard():
 
 async def callback_query_handler(client: Client, callback_query):
     """Handle callback queries from inline buttons"""
-    data = callbackquery.data
+    data = callback_query.data
     
     if data == "about":
         about_text = (
@@ -64,7 +64,7 @@ async def callback_query_handler(client: Client, callback_query):
             "<b>𝖣𝖾𝗏𝖾𝗅𝗈𝗉𝖾𝗋:</b> @Vecna\n"
             "<b>𝖯𝗈𝗐𝖾𝗋𝖾𝖽 𝖻𝗒:</b> @Vecna_Bots"
         )
-        await callbackquery.message.edit_caption(
+        await callback_query.message.edit_caption(
             caption=about_text,
             reply_markup=get_back_button_keyboard()
         )
@@ -95,7 +95,7 @@ async def callback_query_handler(client: Client, callback_query):
             "3. 𝖦𝖾𝗇𝖾𝗋𝖺𝗍𝖾 𝗅𝗂𝗇𝗄𝗌 𝗎𝗌𝗂𝗇𝗀 /channelpost 𝗈𝗋 /reqpost\n"
             "4. 𝖲𝗁𝖺𝗋𝖾 𝗍𝗁𝖾 𝗀𝖾𝗇𝖾𝗋𝖺𝗍𝖾𝖽 𝗅𝗂𝗇𝗄𝗌 𝗐𝗂𝗍𝗁 𝗎𝗌𝖾𝗋𝗌"
         )
-        await callbackquery.message.edit_caption(
+        await callback_query.message.edit_caption(
             caption=help_text,
             reply_markup=get_back_button_keyboard()
         )
@@ -461,8 +461,8 @@ async def rem_admin_handler(client: Client, message: Message):
 
 def register_all_handlers(client: Client):
     client.add_handler(MessageHandler(start_handler, filters.command("start")))
-    client.add_handler(MessageHandler(callbackquery_handler, filters.callback_query))
-    client.add_handler(MessageHandler(clone_handler, filters.command("clone") & filters.private))
+    client.add_handler(CallbackQueryHandler(callback_query_handler))
+    client.add_handler(MessageHandler(clone_handler, filters.command("clone") & filters.private & is_owner))
     client.add_handler(MessageHandler(add_admin_handler, filters.command("addadmin") & filters.private & is_owner))
     client.add_handler(MessageHandler(rem_admin_handler, filters.command("remadmin") & filters.private & is_owner))
     client.add_handler(MessageHandler(set_channel_handler, filters.command("setchannel") & filters.private & is_admin))
