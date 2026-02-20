@@ -24,17 +24,114 @@ async def is_owner_filter(_, client, message: Message):
 is_admin = filters.create(is_admin_filter)
 is_owner = filters.create(is_owner_filter)
 
+# --- Helper Functions for Buttons ---
+
+def get_start_keyboard():
+    """Returns the inline keyboard for start message with About and Help buttons"""
+    return InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("📚 𝖠𝖻𝗈𝗎𝗍", callback_data="about"),
+            InlineKeyboardButton("❓ 𝖧𝖾𝗅𝗉", callback_data="help")
+        ],
+        [
+            InlineKeyboardButton("📢 𝖢𝗁𝖺𝗇𝗇𝖾𝗅", url="https://t.me/Vecna_Bots"),
+            InlineKeyboardButton("👥 𝖲𝗎𝗉𝗉𝗈𝗋𝗍", url="https://t.me/Bots_Nation")
+        ]
+    ])
+
+def get_back_button_keyboard():
+    """Returns keyboard with back button to return to start menu"""
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("🔙 𝖡𝖺𝖼𝗄 𝗍𝗈 𝖲𝗍𝖺𝗋𝗍", callback_data="back_to_start")]
+    ])
+
+# --- Callback Query Handler ---
+
+async def callback_query_handler(client: Client, callback_query):
+    """Handle callback queries from inline buttons"""
+    data = callback_query.data
+    
+    if data == "about":
+        about_text = (
+            "<b>ℹ️ 𝖠𝖻𝗈𝗎𝗍 𝖳𝗁𝗂𝗌 𝖡𝗈𝗍</b>\n\n"
+            "<b>𝖢𝗁𝖺𝗇𝗇𝖾𝗅 𝖫𝗂𝗇𝗄 𝖡𝗈𝗍</b> - 𝖠 𝗉𝗈𝗐𝖾𝗋𝖿𝗎𝗅 𝖻𝗈𝗍 𝗍𝗁𝖺𝗍 𝖼𝗋𝖾𝖺𝗍𝖾𝗌 𝗌𝗆𝖺𝗋𝗍 𝗋𝖾𝖽𝗂𝗋𝖾𝖼𝗍 𝗅𝗂𝗇𝗄𝗌 𝖿𝗈𝗋 𝗒𝗈𝗎𝗋 𝖳𝖾𝗅𝖾𝗀𝗋𝖺𝗆 𝖼𝗁𝖺𝗇𝗇𝖾𝗅𝗌 𝖺𝗇𝖽 𝗀𝗋𝗈𝗎𝗉𝗌.\n\n"
+            "<b>𝖥𝖾𝖺𝗍𝗎𝗋𝖾𝗌:</b>\n"
+            "• 𝖢𝗋𝖾𝖺𝗍𝖾 𝗍𝖾𝗆𝗉𝗈𝗋𝖺𝗋𝗒 𝗃𝗈𝗂𝗇 𝗅𝗂𝗇𝗄𝗌 (10-𝗆𝗂𝗇𝗎𝗍𝖾 𝖾𝗑𝗉𝗂𝗋𝗒)\n"
+            "• 𝖢𝗋𝖾𝖺𝗍𝖾 𝗋𝖾𝗊𝗎𝖾𝗌𝗍-𝗍𝗈-𝗃𝗈𝗂𝗇 𝗅𝗂𝗇𝗄𝗌 (𝖺𝖽𝗆𝗂𝗇 𝖺𝗉𝗉𝗋𝗈𝗏𝖺𝗅 𝗋𝖾𝗊𝗎𝗂𝗋𝖾𝖽)\n"
+            "• 𝖲𝗎𝗉𝗉𝗈𝗋𝗍 𝖿𝗈𝗋 𝖼𝗁𝖺𝗇𝗇𝖾𝗅𝗌, 𝗀𝗋𝗈𝗎𝗉𝗌, 𝖺𝗇𝖽 𝗌𝗎𝗉𝖾𝗋𝗀𝗋𝗈𝗎𝗉𝗌\n"
+            "• 𝖬𝗎𝗅𝗍𝗂-𝖻𝗈𝗍 𝖼𝗅𝗈𝗇𝗂𝗇𝗀 𝗌𝗎𝗉𝗉𝗈𝗋𝗍 (𝗎𝗉 𝗍𝗈 100 𝖻𝗈𝗍𝗌)\n"
+            "• 𝖠𝖽𝗆𝗂𝗇 𝗆𝖺𝗇𝖺𝗀𝖾𝗆𝖾𝗇𝗍 𝗌𝗒𝗌𝗍𝖾𝗆\n\n"
+            "<b>𝖣𝖾𝗏𝖾𝗅𝗈𝗉𝖾𝗋:</b> @Vecna\n"
+            "<b>𝖯𝗈𝗐𝖾𝗋𝖾𝖽 𝖻𝗒:</b> @Vecna_Bots"
+        )
+        await callback_query.message.edit_caption(
+            caption=about_text,
+            reply_markup=get_back_button_keyboard()
+        )
+    
+    elif data == "help":
+        help_text = (
+            "<b>❓ 𝖧𝖾𝗅𝗉 & 𝖢𝗈𝗆𝗆𝖺𝗇𝖽𝗌</b>\n\n"
+            "<b>𝖴𝗌𝖾𝗋 𝖢𝗈𝗆𝗆𝖺𝗇𝖽𝗌:</b>\n"
+            "• /start - 𝖲𝗍𝖺𝗋𝗍 𝗍𝗁𝖾 𝖻𝗈𝗍\n\n"
+            "<b>𝖠𝖽𝗆𝗂𝗇 𝖢𝗈𝗆𝗆𝖺𝗇𝖽𝗌:</b>\n"
+            "• /setchannel [@username/𝗂𝖽] - 𝖱𝖾𝗀𝗂𝗌𝗍𝖾𝗋 𝖺 𝖼𝗁𝖺𝗇𝗇𝖾𝗅/𝗀𝗋𝗈𝗎𝗉\n"
+            "• /delchannel [@username/𝗂𝖽] - 𝖱𝖾𝗆𝗈𝗏𝖾 𝖺 𝖼𝗁𝖺𝗇𝗇𝖾𝗅/𝗀𝗋𝗈𝗎𝗉\n"
+            "• /channelpost - 𝖦𝖾𝗍 𝖺𝗅𝗅 𝗍𝖾𝗆𝗉𝗈𝗋𝖺𝗋𝗒 𝗃𝗈𝗂𝗇 𝗅𝗂𝗇𝗄𝗌\n"
+            "• /channelpost [@username/𝗂𝖽] - 𝖦𝖾𝗍 𝗌𝗉𝖾𝖼𝗂𝖿𝗂𝖼 𝖼𝗁𝖺𝗇𝗇𝖾𝗅 𝗅𝗂𝗇𝗄\n"
+            "• /reqpost - 𝖦𝖾𝗍 𝖺𝗅𝗅 𝗋𝖾𝗊𝗎𝖾𝗌𝗍-𝗍𝗈-𝗃𝗈𝗂𝗇 𝗅𝗂𝗇𝗄𝗌\n"
+            "• /reqpost [@username/𝗂𝖽] - 𝖦𝖾𝗍 𝗌𝗉𝖾𝖼𝗂𝖿𝗂𝖼 𝗋𝖾𝗊𝗎𝖾𝗌𝗍 𝗅𝗂𝗇𝗄\n"
+            "• /broadcast - 𝖡𝗋𝗈𝖺𝖽𝖼𝖺𝗌𝗍 𝗆𝖾𝗌𝗌𝖺𝗀𝖾 (𝗋𝖾𝗉𝗅𝗒 𝗍𝗈 𝖺 𝗆𝖾𝗌𝗌𝖺𝗀𝖾)\n"
+            "• /users - 𝖦𝖾𝗍 𝗍𝗈𝗍𝖺𝗅 𝗎𝗌𝖾𝗋 𝖼𝗈𝗎𝗇𝗍\n"
+            "• /stats - 𝖦𝖾𝗍 𝖻𝗈𝗍 𝗌𝗍𝖺𝗍𝗂𝗌𝗍𝗂𝖼𝗌\n"
+            "• /bots - 𝖫𝗂𝗌𝗍 𝖺𝗅𝗅 𝖼𝗅𝗈𝗇𝖾𝖽 𝖻𝗈𝗍𝗌\n\n"
+            "<b>𝖮𝗐𝗇𝖾𝗋 𝖢𝗈𝗆𝗆𝖺𝗇𝖽𝗌:</b>\n"
+            "• /clone [𝖻𝗈𝗍_𝗍𝗈𝗄𝖾𝗇] - 𝖢𝗅𝗈𝗇𝖾 𝖺 𝗇𝖾𝗐 𝖻𝗈𝗍\n"
+            "• /addadmin [𝗎𝗌𝖾𝗋_𝗂𝖽] - 𝖠𝖽𝖽 𝖺𝖽𝗆𝗂𝗇 𝗍𝗈 𝗍𝗁𝗂𝗌 𝖻𝗈𝗍\n"
+            "• /remadmin [𝗎𝗌𝖾𝗋_𝗂𝖽] - 𝖱𝖾𝗆𝗈𝗏𝖾 𝖺𝖽𝗆𝗂𝗇 𝖿𝗋𝗈𝗆 𝗍𝗁𝗂𝗌 𝖻𝗈𝗍\n\n"
+            "<b>𝖧𝗈𝗐 𝗍𝗈 𝖴𝗌𝖾:</b>\n"
+            "1. 𝖠𝖽𝖽 𝖻𝗈𝗍 𝖺𝗌 𝖺𝖽𝗆𝗂𝗇 𝗍𝗈 𝗒𝗈𝗎𝗋 𝖼𝗁𝖺𝗇𝗇𝖾𝗅/𝗀𝗋𝗈𝗎𝗉\n"
+            "2. 𝖱𝖾𝗀𝗂𝗌𝗍𝖾𝗋 𝗂𝗍 𝗎𝗌𝗂𝗇𝗀 /setchannel\n"
+            "3. 𝖦𝖾𝗇𝖾𝗋𝖺𝗍𝖾 𝗅𝗂𝗇𝗄𝗌 𝗎𝗌𝗂𝗇𝗀 /channelpost 𝗈𝗋 /reqpost\n"
+            "4. 𝖲𝗁𝖺𝗋𝖾 𝗍𝗁𝖾 𝗀𝖾𝗇𝖾𝗋𝖺𝗍𝖾𝖽 𝗅𝗂𝗇𝗄𝗌 𝗐𝗂𝗍𝗁 𝗎𝗌𝖾𝗋𝗌"
+        )
+        await callback_query.message.edit_caption(
+            caption=help_text,
+            reply_markup=get_back_button_keyboard()
+        )
+    
+    elif data == "back_to_start":
+        start_text = ("<b><blockquote>𝖡𝖺𝗄𝗄𝖺 {mention}!\n\n𝖨’𝗆 𝗍𝗁𝖾 𝖢𝗁𝖺𝗇𝗇𝖾𝗅 𝖫𝗂𝗇𝗄 𝖡𝗈𝗍 — 𝖨 𝖼𝗋𝖾𝖺𝗍𝖾 𝗌𝗆𝖺𝗋𝗍 𝗋𝖾𝖽𝗂𝗋𝖾𝖼𝗍 𝗅𝗂𝗇𝗄𝗌 𝖿𝗈𝗋 𝗒𝗈𝗎𝗋 𝖳𝖾𝗅𝖾𝗀𝗋𝖺𝗆 𝖼𝗁𝖺𝗇𝗇𝖾𝗅𝗌 𝗍𝗈 𝗁𝖾𝗅𝗉 𝖺𝗏𝗈𝗂𝖽 𝖼𝗈𝗉𝗒𝗋𝗂𝗀𝗁𝗍 𝗉𝗋𝗈𝖻𝗅𝖾𝗆𝗌 𝖺𝗇𝖽 𝗄𝖾𝖾𝗉 𝗍𝗁𝗂𝗇𝗀𝗌 𝗌𝖺𝖿𝖾.</blockquote></b>").format(mention=callback_query.from_user.mention)
+        await callback_query.message.edit_caption(
+            caption=start_text,
+            reply_markup=get_start_keyboard()
+        )
+    
+    await callback_query.answer()
+
 # --- Handlers ---
 
 async def start_handler(client: Client, message: Message):
     await db.update_user(client.me.id, message.from_user.id, message.from_user.first_name)
     args = message.text.split(" ", 1)
     start_text = ("<b><blockquote>𝖡𝖺𝗄𝗄𝖺 {mention}!\n\n𝖨’𝗆 𝗍𝗁𝖾 𝖢𝗁𝖺𝗇𝗇𝖾𝗅 𝖫𝗂𝗇𝗄 𝖡𝗈𝗍 — 𝖨 𝖼𝗋𝖾𝖺𝗍𝖾 𝗌𝗆𝖺𝗋𝗍 𝗋𝖾𝖽𝗂𝗋𝖾𝖼𝗍 𝗅𝗂𝗇𝗄𝗌 𝖿𝗈𝗋 𝗒𝗈𝗎𝗋 𝖳𝖾𝗅𝖾𝗀𝗋𝖺𝗆 𝖼𝗁𝖺𝗇𝗇𝖾𝗅𝗌 𝗍𝗈 𝗁𝖾𝗅𝗉 𝖺𝗏𝗈𝗂𝖽 𝖼𝗈𝗉𝗒𝗋𝗂𝗀𝗁𝗍 𝗉𝗋𝗈𝖻𝗅𝖾𝗆𝗌 𝖺𝗇𝖽 𝗄𝖾𝖾𝗉 𝗍𝗁𝗂𝗇𝗀𝗌 𝗌𝖺𝖿𝖾.</blockquote></b>").format(mention=message.from_user.mention)
+    
     if len(args) == 1:
-        return await message.reply_photo(
-            START_PIC,
-            caption=start_text
-        )
+        # Main start message with About and Help buttons
+        if START_PIC:
+            return await message.reply_photo(
+                START_PIC,
+                caption=start_text,
+                reply_markup=get_start_keyboard()
+            )
+        else:
+            return await message.reply(
+                start_text,
+                reply_markup=get_start_keyboard(),
+                disable_web_page_preview=True
+            )
+    
+    # Handle deep linking (existing code)
     param = args[1]
     is_req = False
     if param.startswith("req_"):
@@ -332,11 +429,11 @@ async def clone_handler(client: Client, message: Message):
         await new_client.start()
         running_clients.append(new_client)
 
-        await message.reply(f"✅ Bot @{bot_info.username} successfully cloned and started!")
+        await message.reply(f"✅ 𝖡𝗈𝗍 @{bot_info.username} 𝗌𝗎𝖼𝖼𝖾𝗌𝗌𝖿𝗎𝗅𝗅𝗒 𝖼𝗅𝗈𝗇𝖾𝖽 𝖺𝗇𝖽 𝗌𝗍𝖺𝗋𝗍𝖾𝖽!")
     except TokenInvalid:
-        await message.reply("❌ Invalid bot token.")
+        await message.reply("❌ 𝖨𝗇𝗏𝖺𝗅𝗂𝖽 𝖻𝗈𝗍 𝗍𝗈𝗄𝖾𝗇.")
     except Exception as e:
-        await message.reply(f"❌ Error during cloning: {e}")
+        await message.reply(f"❌ 𝖤𝗋𝗋𝗈𝗋 𝖽𝗎𝗋𝗂𝗇𝗀 𝖼𝗅𝗈𝗇𝗂𝗇𝗀: {e}")
 
 async def add_admin_handler(client: Client, message: Message):
     if len(message.command) != 2:
@@ -345,9 +442,9 @@ async def add_admin_handler(client: Client, message: Message):
     try:
         admin_id = int(message.command[1])
         await db.add_admin(client.me.id, admin_id)
-        await message.reply(f"✅ User {admin_id} added as admin for this bot.")
+        await message.reply(f"✅ 𝖴𝗌𝖾𝗋 {admin_id} 𝖺𝖽𝖽𝖾𝖽 𝖺𝗌 𝖺𝖽𝗆𝗂𝗇 𝖿𝗈𝗋 𝗍𝗁𝗂𝗌 𝖻𝗈𝗍.")
     except ValueError:
-        await message.reply("❌ User ID must be an integer.")
+        await message.reply("❌ 𝖴𝗌𝖾𝗋 𝖨𝖣 𝗆𝗎𝗌𝗍 𝖻𝖾 𝖺𝗇 𝗂𝗇𝗍𝖾𝗀𝖾𝗋.")
 
 async def rem_admin_handler(client: Client, message: Message):
     if len(message.command) != 2:
@@ -356,14 +453,15 @@ async def rem_admin_handler(client: Client, message: Message):
     try:
         admin_id = int(message.command[1])
         await db.remove_admin(client.me.id, admin_id)
-        await message.reply(f"✅ User {admin_id} removed from admins for this bot.")
+        await message.reply(f"✅ 𝖴𝗌𝖾𝗋 {admin_id} 𝗋𝖾𝗆𝗈𝗏𝖾𝖽 𝖿𝗋𝗈𝗆 𝖺𝖽𝗆𝗂𝗇𝗌 𝖿𝗈𝗋 𝗍𝗁𝗂𝗌 𝖻𝗈𝗍.")
     except ValueError:
-        await message.reply("❌ User ID must be an integer.")
+        await message.reply("❌ 𝖴𝗌𝖾𝗋 𝖨𝖣 𝗆𝗎𝗌𝗍 𝖻𝖾 𝖺𝗇 𝗂𝗇𝗍𝖾𝗀𝖾𝗋.")
 
 # --- Initialization ---
 
 def register_all_handlers(client: Client):
     client.add_handler(MessageHandler(start_handler, filters.command("start")))
+    client.add_handler(MessageHandler(callback_query_handler, filters.callback_query))
     client.add_handler(MessageHandler(clone_handler, filters.command("clone") & filters.private))
     client.add_handler(MessageHandler(add_admin_handler, filters.command("addadmin") & filters.private & is_owner))
     client.add_handler(MessageHandler(rem_admin_handler, filters.command("remadmin") & filters.private & is_owner))
