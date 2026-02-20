@@ -49,7 +49,7 @@ def get_back_button_keyboard():
 
 async def callback_query_handler(client: Client, callback_query):
     """Handle callback queries from inline buttons"""
-    data = callback_query.data
+    data = callbackquery.data
     
     if data == "about":
         about_text = (
@@ -64,7 +64,7 @@ async def callback_query_handler(client: Client, callback_query):
             "<b>𝖣𝖾𝗏𝖾𝗅𝗈𝗉𝖾𝗋:</b> @Vecna\n"
             "<b>𝖯𝗈𝗐𝖾𝗋𝖾𝖽 𝖻𝗒:</b> @Vecna_Bots"
         )
-        await callback_query.message.edit_caption(
+        await callbackquery.message.edit_caption(
             caption=about_text,
             reply_markup=get_back_button_keyboard()
         )
@@ -95,7 +95,7 @@ async def callback_query_handler(client: Client, callback_query):
             "3. 𝖦𝖾𝗇𝖾𝗋𝖺𝗍𝖾 𝗅𝗂𝗇𝗄𝗌 𝗎𝗌𝗂𝗇𝗀 /channelpost 𝗈𝗋 /reqpost\n"
             "4. 𝖲𝗁𝖺𝗋𝖾 𝗍𝗁𝖾 𝗀𝖾𝗇𝖾𝗋𝖺𝗍𝖾𝖽 𝗅𝗂𝗇𝗄𝗌 𝗐𝗂𝗍𝗁 𝗎𝗌𝖾𝗋𝗌"
         )
-        await callback_query.message.edit_caption(
+        await callbackquery.message.edit_caption(
             caption=help_text,
             reply_markup=get_back_button_keyboard()
         )
