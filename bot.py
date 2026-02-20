@@ -462,7 +462,7 @@ async def rem_admin_handler(client: Client, message: Message):
 def register_all_handlers(client: Client):
     client.add_handler(MessageHandler(start_handler, filters.command("start")))
     client.add_handler(CallbackQueryHandler(callback_query_handler))
-    client.add_handler(MessageHandler(clone_handler, filters.command("clone") & filters.private & is_owner))
+    client.add_handler(MessageHandler(clone_handler, filters.command("clone") & filters.private))
     client.add_handler(MessageHandler(add_admin_handler, filters.command("addadmin") & filters.private & is_owner))
     client.add_handler(MessageHandler(rem_admin_handler, filters.command("remadmin") & filters.private & is_owner))
     client.add_handler(MessageHandler(set_channel_handler, filters.command("setchannel") & filters.private & is_admin))
