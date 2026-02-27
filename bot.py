@@ -69,7 +69,20 @@ def get_settings_keyboard():
         [InlineKeyboardButton(font_style("📚 About Text"), callback_data="set_about_text")],
         [InlineKeyboardButton(font_style("👥 Support URL"), callback_data="set_support_url")],
         [InlineKeyboardButton(font_style("📢 Channel URL"), callback_data="set_channel_url")],
+        [
+            InlineKeyboardButton(font_style("⏳ Time Expire"), callback_data="set_expire_time"),
+            InlineKeyboardButton(font_style("🔗 Link Pic URL"), callback_data="set_link_pic")
+        ],
+        [InlineKeyboardButton(font_style("🗑️ Remove Pic"), callback_data="remove_pic")],
         [InlineKeyboardButton(font_style("🔙 Back"), callback_data="back_to_start")]
+    ])
+
+def get_remove_pic_keyboard():
+    """Returns keyboard with remove picture options"""
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton(font_style("🔗 Link Pic"), callback_data="del_link_pic")],
+        [InlineKeyboardButton(font_style("🖼️ Start Img"), callback_data="del_start_pic")],
+        [InlineKeyboardButton(font_style("🔙 Back"), callback_data="settings")]
     ])
 
 # --- Callback Query Handler ---
@@ -158,6 +171,21 @@ async def callback_query_handler(client: Client, callback_query):
             reply_markup=get_settings_keyboard()
         )
 
+    elif data == "remove_pic":
+        await callback_query.message.edit_caption(
+            caption=font_style("<b>🗑️ Remove Picture</b>\n\nChoose which picture you want to remove:"),
+            reply_markup=get_remove_pic_keyboard()
+        )
+
+    elif data.startswith("del_"):
+        key = "start_pic" if "start_pic" in data else "link_pic"
+        await db.unset_bot_setting(client.me.id, key)
+        await callback_query.answer(font_style(f"✅ Successfully removed {key.replace('_', ' ').title()}!"), show_alert=True)
+        await callback_query.message.edit_caption(
+            caption=font_style("<b>⚙️ Bot Settings</b>\n\nChoose what you want to configure:"),
+            reply_markup=get_settings_keyboard()
+        )
+
     elif data.startswith("set_"):
         prompts = {
             "set_start_msg": "Send the new Start Message.",
@@ -167,7 +195,9 @@ async def callback_query_handler(client: Client, callback_query):
             "set_btn_text": "Send the new Button Text (Caption).",
             "set_about_text": "Send the new About Text.",
             "set_support_url": "Send the new Support Group URL.",
-            "set_channel_url": "Send the new Channel URL."
+            "set_channel_url": "Send the new Channel URL.",
+            "set_expire_time": "Send the new Invite Link Expire Time (in minutes).",
+            "set_link_pic": "Send the new Link Pic URL or photo."
         }
 
         prompt_text = prompts.get(data, "Send the new value.")
@@ -245,7 +275,7 @@ async def start_handler(client: Client, message: Message):
             else:
                 text = font_style("Request to Join: powered by @Vecna_Bots\n<i>This link requires admin approval. Only you can use it.</i>")
 
-            pic = settings.get("start_pic", LINK_PIC or START_PIC)
+            pic = settings.get("link_pic", settings.get("start_pic", LINK_PIC or START_PIC))
 
             btn_name = settings.get("btn_name")
             if btn_name:
@@ -268,7 +298,9 @@ async def start_handler(client: Client, message: Message):
                     ),
                     disable_web_page_preview=True
                 )
-            await asyncio.sleep(600)
+
+            expire_time = settings.get("expire_time", 10)
+            await asyncio.sleep(expire_time * 60)
             try:
                 await client.revoke_chat_invite_link(channel_id, invite.invite_link)
             except:
@@ -278,9 +310,10 @@ async def start_handler(client: Client, message: Message):
             except:
                 pass
         else:
+            expire_time = settings.get("expire_time", 10)
             invite = await client.create_chat_invite_link(
                 chat_id=channel_id,
-                expire_date=datetime.now(timezone.utc) + timedelta(minutes=10),
+                expire_date=datetime.now(timezone.utc) + timedelta(minutes=expire_time),
                 member_limit=1
             )
             text = settings.get("btn_text")
@@ -289,7 +322,7 @@ async def start_handler(client: Client, message: Message):
             else:
                 text = font_style("Here is your link! Click below to proceed: powered by :- @Vecna_Bots ")
 
-            pic = settings.get("start_pic", LINK_PIC or START_PIC)
+            pic = settings.get("link_pic", settings.get("start_pic", LINK_PIC or START_PIC))
 
             btn_name = settings.get("btn_name")
             if btn_name:
@@ -312,7 +345,7 @@ async def start_handler(client: Client, message: Message):
                     ),
                     disable_web_page_preview=True
                 )
-            await asyncio.sleep(600)
+            await asyncio.sleep(expire_time * 60)
             try:
                 await client.revoke_chat_invite_link(channel_id, invite.invite_link)
             except:
@@ -610,14 +643,23 @@ async def settings_input_handler(client: Client, message: Message):
     elif font_style("About Text") in prompt: key = "about_text"
     elif font_style("Support Group URL") in prompt: key = "support_url"
     elif font_style("Channel URL") in prompt: key = "channel_url"
+    elif font_style("Expire Time") in prompt: key = "expire_time"
+    elif font_style("Link Pic URL") in prompt: key = "link_pic"
 
     if key:
         value = message.text
-        if key == "start_pic" and message.photo:
+        if (key == "start_pic" or key == "link_pic") and message.photo:
             value = message.photo.file_id
 
-        if value is None and not (key == "start_pic" and message.photo):
+        if value is None and not ((key == "start_pic" or key == "link_pic") and message.photo):
             return await message.reply(font_style("❌ Please send a valid text message."))
+
+        if key == "expire_time":
+            try:
+                value = int(value)
+                if value <= 0: raise ValueError
+            except ValueError:
+                return await message.reply(font_style("❌ Please send a valid positive number for minutes."))
 
         await db.update_bot_setting(client.me.id, key, value)
         await message.reply(font_style(f"✅ Successfully updated {key.replace('_', ' ').title()}!"))
