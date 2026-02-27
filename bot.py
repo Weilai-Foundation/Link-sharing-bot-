@@ -2,7 +2,7 @@ from pyrogram import Client, filters, idle
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, ForceReply
 from pyrogram.enums import ChatType
 from pyrogram.handlers import MessageHandler, CallbackQueryHandler
-from pyrogram.errors import TokenInvalid
+from pyrogram.errors import TokenInvalid, FloodWait
 import asyncio
 from datetime import datetime, timedelta, timezone
 
@@ -30,16 +30,22 @@ is_main_owner = filters.create(is_main_owner_filter)
 
 # --- Helper Functions for Buttons ---
 
-def get_start_keyboard(is_admin=False):
+def get_start_keyboard(is_admin=False, settings=None):
     """Returns the inline keyboard for start message with About and Help buttons"""
+    if settings is None:
+        settings = {}
+
+    channel_url = settings.get("channel_url", "https://t.me/Vecna_Bots")
+    support_url = settings.get("support_url", "https://t.me/Vecna_Suppprt")
+
     buttons = [
         [
             InlineKeyboardButton(font_style("📚 About"), callback_data="about"),
             InlineKeyboardButton(font_style("❓ Help"), callback_data="help")
         ],
         [
-            InlineKeyboardButton(font_style("📢 Channel"), url="https://t.me/Vecna_Bots"),
-            InlineKeyboardButton(font_style("👥 Support"), url="https://t.me/Vecna_Suppprt")
+            InlineKeyboardButton(font_style("📢 Channel"), url=channel_url),
+            InlineKeyboardButton(font_style("👥 Support"), url=support_url)
         ]
     ]
     if is_admin:
@@ -60,6 +66,9 @@ def get_settings_keyboard():
         [InlineKeyboardButton(font_style("🖼️ Start Image URL"), callback_data="set_start_pic")],
         [InlineKeyboardButton(font_style("🔘 Button Name"), callback_data="set_btn_name")],
         [InlineKeyboardButton(font_style("📄 Button Text"), callback_data="set_btn_text")],
+        [InlineKeyboardButton(font_style("📚 About Text"), callback_data="set_about_text")],
+        [InlineKeyboardButton(font_style("👥 Support URL"), callback_data="set_support_url")],
+        [InlineKeyboardButton(font_style("📢 Channel URL"), callback_data="set_channel_url")],
         [InlineKeyboardButton(font_style("🔙 Back"), callback_data="back_to_start")]
     ])
 
@@ -72,18 +81,22 @@ async def callback_query_handler(client: Client, callback_query):
     settings = await db.get_bot_settings(client.me.id)
 
     if data == "about":
-        about_text = font_style(
-            "<b>ℹ️ About This Bot</b>\n\n"
-            "<b>Channel Link Bot</b> - A powerful bot that creates smart redirect links for your Telegram channels and groups.\n\n"
-            "<b>Features:</b>\n"
-            "• Create temporary join links (10-minute expiry)\n"
-            "• Create request-to-join links (admin approval required)\n"
-            "• Support for channels, groups, and supergroups\n"
-            "• Multi-bot cloning support (up to 100 bots)\n"
-            "• Admin management system\n\n"
-            "<b>Developer:</b> @Vecna_Bots\n"
-            "<b>Powered by:</b> @Vecna_Bots"
-        )
+        about_text = settings.get("about_text")
+        if about_text:
+            about_text = font_style(about_text)
+        else:
+            about_text = font_style(
+                "<b>ℹ️ About This Bot</b>\n\n"
+                "<b>Channel Link Bot</b> - A powerful bot that creates smart redirect links for your Telegram channels and groups.\n\n"
+                "<b>Features:</b>\n"
+                "• Create temporary join links (10-minute expiry)\n"
+                "• Create request-to-join links (admin approval required)\n"
+                "• Support for channels, groups, and supergroups\n"
+                "• Multi-bot cloning support (up to 100 bots)\n"
+                "• Admin management system\n\n"
+                "<b>Developer:</b> @Vecna_Bots\n"
+                "<b>Powered by:</b> @Vecna_Bots"
+            )
         await callback_query.message.edit_caption(
             caption=about_text,
             reply_markup=get_back_button_keyboard()
@@ -136,7 +149,7 @@ async def callback_query_handler(client: Client, callback_query):
         is_adm = await db.is_admin(client.me.id, callback_query.from_user.id, ADMINS)
         await callback_query.message.edit_caption(
             caption=start_text,
-            reply_markup=get_start_keyboard(is_admin=is_adm)
+            reply_markup=get_start_keyboard(is_admin=is_adm, settings=settings)
         )
     
     elif data == "settings":
@@ -151,7 +164,10 @@ async def callback_query_handler(client: Client, callback_query):
             "set_help_msg": "Send the new Help Message.",
             "set_start_pic": "Send the new Start Image URL or photo.",
             "set_btn_name": "Send the new Button Name.",
-            "set_btn_text": "Send the new Button Text (Caption)."
+            "set_btn_text": "Send the new Button Text (Caption).",
+            "set_about_text": "Send the new About Text.",
+            "set_support_url": "Send the new Support Group URL.",
+            "set_channel_url": "Send the new Channel URL."
         }
 
         prompt_text = prompts.get(data, "Send the new value.")
@@ -184,12 +200,12 @@ async def start_handler(client: Client, message: Message):
             return await message.reply_photo(
                 pic,
                 caption=start_text,
-                reply_markup=get_start_keyboard(is_admin=is_adm)
+                reply_markup=get_start_keyboard(is_admin=is_adm, settings=settings)
             )
         else:
             return await message.reply(
                 start_text,
-                reply_markup=get_start_keyboard(is_admin=is_adm),
+                reply_markup=get_start_keyboard(is_admin=is_adm, settings=settings),
                 disable_web_page_preview=True
             )
     
@@ -312,15 +328,28 @@ async def broadcast_handler(client: Client, message: Message):
     if not message.reply_to_message:
         return await message.reply(font_style("Reply to a message to broadcast it."))
 
+    msg = await message.reply(font_style("Broadcasting..."))
     users = await db.get_users(client.me.id)
     success, failed = 0, 0
+
     async for user in users:
         try:
             await client.copy_message(user['user_id'], message.chat.id, message.reply_to_message.id)
             success += 1
-        except:
+        except FloodWait as e:
+            await asyncio.sleep(e.value)
+            await client.copy_message(user['user_id'], message.chat.id, message.reply_to_message.id)
+            success += 1
+        except Exception:
             failed += 1
-    await message.reply(font_style(f"Broadcast completed.\nSent: {success}\nFailed: {failed}"))
+
+        if (success + failed) % 20 == 0:
+            try:
+                await msg.edit(font_style(f"Broadcasting...\n\nSent: {success}\nFailed: {failed}"))
+            except Exception:
+                pass
+
+    await msg.edit(font_style(f"<b>Broadcast completed.</b>\n\nTotal: {success + failed}\nSent: {success}\nFailed: {failed}"))
 
 async def users_list_handler(client: Client, message: Message):
     count = await db.get_user_count(client.me.id)
@@ -578,6 +607,9 @@ async def settings_input_handler(client: Client, message: Message):
     elif font_style("Start Image URL") in prompt: key = "start_pic"
     elif font_style("Button Name") in prompt: key = "btn_name"
     elif font_style("Button Text") in prompt: key = "btn_text"
+    elif font_style("About Text") in prompt: key = "about_text"
+    elif font_style("Support Group URL") in prompt: key = "support_url"
+    elif font_style("Channel URL") in prompt: key = "channel_url"
 
     if key:
         value = message.text
@@ -639,6 +671,7 @@ async def main():
     register_all_handlers(master_bot)
     await master_bot.start()
     running_clients.append(master_bot)
+    await db.add_bot(master_bot.me.id, BOT_TOKEN, ADMINS[0], master_bot.me.username)
     print(f"Master Bot @{master_bot.me.username} started.")
 
     # Start Cloned Bots

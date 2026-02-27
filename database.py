@@ -41,13 +41,15 @@ class Database:
     async def add_admin(self, bot_id, admin_id):
         await self.bots.update_one(
             {"_id": bot_id},
-            {"$addToSet": {"admins": admin_id}}
+            {"$addToSet": {"admins": admin_id}},
+            upsert=True
         )
 
     async def remove_admin(self, bot_id, admin_id):
         await self.bots.update_one(
             {"_id": bot_id},
-            {"$pull": {"admins": admin_id}}
+            {"$pull": {"admins": admin_id}},
+            upsert=True
         )
 
     async def is_admin(self, bot_id, user_id, global_admins):
