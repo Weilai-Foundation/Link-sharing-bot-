@@ -38,6 +38,12 @@ class Database:
             {"$set": {f"settings.{key}": value}}
         )
 
+    async def unset_bot_setting(self, bot_id, key):
+        await self.bots.update_one(
+            {"_id": bot_id},
+            {"$unset": {f"settings.{key}": ""}}
+        )
+
     async def add_admin(self, bot_id, admin_id):
         await self.bots.update_one(
             {"_id": bot_id},
