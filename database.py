@@ -90,6 +90,9 @@ class Database:
     async def get_users(self, bot_id):
         return self.users.find({"bot_id": bot_id})
 
+    async def delete_user(self, bot_id, user_id):
+        return await self.users.delete_one({"_id": f"{bot_id}_{user_id}"})
+
     # Channel management
     async def update_channel(self, bot_id, chat_id, title, username, chat_type):
         await self.channels.update_one(

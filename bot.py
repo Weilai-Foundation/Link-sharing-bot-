@@ -2,7 +2,7 @@ from pyrogram import Client, filters, idle
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, ForceReply
 from pyrogram.enums import ChatType
 from pyrogram.handlers import MessageHandler, CallbackQueryHandler
-from pyrogram.errors import TokenInvalid, FloodWait
+from pyrogram.errors import TokenInvalid, FloodWait, UserIsBlocked, InputUserDeactivated, PeerIdInvalid
 import asyncio
 from datetime import datetime, timedelta, timezone
 
@@ -381,26 +381,39 @@ async def broadcast_handler(client: Client, message: Message):
 
     msg = await message.reply(font_style("Broadcasting..."))
     users = await db.get_users(client.me.id)
+    total = await db.get_user_count(client.me.id)
     success, failed = 0, 0
 
     async for user in users:
-        try:
-            await client.copy_message(user['user_id'], message.chat.id, message.reply_to_message.id)
-            success += 1
-        except FloodWait as e:
-            await asyncio.sleep(e.value)
-            await client.copy_message(user['user_id'], message.chat.id, message.reply_to_message.id)
-            success += 1
-        except Exception:
+        user_id = user['user_id']
+        tries = 0
+        done = False
+        while tries < 3 and not done:
+            try:
+                await client.copy_message(user_id, message.chat.id, message.reply_to_message.id)
+                success += 1
+                done = True
+            except FloodWait as e:
+                await asyncio.sleep(e.value)
+                tries += 1
+            except (UserIsBlocked, InputUserDeactivated, PeerIdInvalid):
+                await db.delete_user(client.me.id, user_id)
+                failed += 1
+                done = True
+            except Exception:
+                failed += 1
+                done = True
+
+        if not done: # Reached max retries for FloodWait
             failed += 1
 
         if (success + failed) % 20 == 0:
             try:
-                await msg.edit(font_style(f"Broadcasting...\n\nSent: {success}\nFailed: {failed}"))
+                await msg.edit(font_style(f"Broadcasting...\n\nSent: {success} / {total}\nFailed: {failed}"))
             except Exception:
                 pass
 
-    await msg.edit(font_style(f"<b>Broadcast completed.</b>\n\nTotal: {success + failed}\nSent: {success}\nFailed: {failed}"))
+    await msg.edit(font_style(f"<b>Broadcast completed.</b>\n\nTotal: {total}\nSent: {success}\nFailed: {failed}"))
 
 async def users_list_handler(client: Client, message: Message):
     count = await db.get_user_count(client.me.id)
@@ -428,11 +441,17 @@ async def set_channel_handler(client: Client, message: Message):
                 "Make sure the bot is a member/admin of the target."
             ))
         await db.update_channel(client.me.id, chat.id, chat.title, chat.username, str(chat.type))
-        await message.reply(font_style(
-            f"{chat.type.name.title()} '{chat.title}' registered.\n"
-            f"ID: `{chat.id}`\n"
-            f"Username: @{chat.username if chat.username else 'N/A'}"
-        ))
+
+        encoded = encode_channel_id(chat.id)
+        reply_text = (
+            f"✅ Cʜᴀɴɴᴇʟ {chat.title} ({chat.id}) ʜᴀs ʙᴇᴇɴ ᴀᴅᴅᴇᴅ sᴜᴄᴄᴇssғᴜʟʟʏ.\n\n"
+            f"🔗 Nᴏʀᴍᴀʟ Lɪɴᴋ: https://t.me/{client.me.username}?start={encoded}\n"
+            f"🔗 Rᴇǫᴜᴇsᴛ Lɪɴᴋ: https://t.me/{client.me.username}?start=req_{encoded}"
+        )
+        await message.reply(
+            font_style(reply_text),
+            disable_web_page_preview=True
+        )
     except Exception as e:
         await message.reply(font_style(
             f"Error: {e}\n"
