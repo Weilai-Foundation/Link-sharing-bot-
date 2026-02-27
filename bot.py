@@ -1,5 +1,5 @@
 from pyrogram import Client, filters, idle
-from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
+from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, ForceReply
 from pyrogram.enums import ChatType
 from pyrogram.handlers import MessageHandler, CallbackQueryHandler
 from pyrogram.errors import TokenInvalid
@@ -21,14 +21,18 @@ async def is_admin_filter(_, client, message: Message):
 async def is_owner_filter(_, client, message: Message):
     return await db.is_owner(client.me.id, message.from_user.id, ADMINS)
 
+async def is_main_owner_filter(_, client, message: Message):
+    return message.from_user.id in ADMINS
+
 is_admin = filters.create(is_admin_filter)
 is_owner = filters.create(is_owner_filter)
+is_main_owner = filters.create(is_main_owner_filter)
 
 # --- Helper Functions for Buttons ---
 
-def get_start_keyboard():
+def get_start_keyboard(is_admin=False):
     """Returns the inline keyboard for start message with About and Help buttons"""
-    return InlineKeyboardMarkup([
+    buttons = [
         [
             InlineKeyboardButton("📚 𝖠𝖻𝗈𝗎𝗍", callback_data="about"),
             InlineKeyboardButton("❓ 𝖧𝖾𝗅𝗉", callback_data="help")
@@ -37,12 +41,26 @@ def get_start_keyboard():
             InlineKeyboardButton("📢 𝖢𝗁𝖺𝗇𝗇𝖾𝗅", url="https://t.me/Vecna_Bots"),
             InlineKeyboardButton("👥 𝖲𝗎𝗉𝗉𝗈𝗋𝗍", url="https://t.me/Vecna_Suppprt")
         ]
-    ])
+    ]
+    if is_admin:
+        buttons.append([InlineKeyboardButton("⚙️ Settings", callback_data="settings")])
+    return InlineKeyboardMarkup(buttons)
 
 def get_back_button_keyboard():
     """Returns keyboard with back button to return to start menu"""
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("🔙 𝖡𝖺𝖼𝗄 𝗍𝗈 𝖲𝗍𝖺𝗋𝗍", callback_data="back_to_start")]
+    ])
+
+def get_settings_keyboard():
+    """Returns the keyboard for settings menu"""
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("📝 Start Message", callback_data="set_start_msg")],
+        [InlineKeyboardButton("ℹ️ Help Message", callback_data="set_help_msg")],
+        [InlineKeyboardButton("🖼️ Start Image URL", callback_data="set_start_pic")],
+        [InlineKeyboardButton("🔘 Button Name", callback_data="set_btn_name")],
+        [InlineKeyboardButton("📄 Button Text", callback_data="set_btn_text")],
+        [InlineKeyboardButton("🔙 Back", callback_data="back_to_start")]
     ])
 
 # --- Callback Query Handler ---
@@ -51,6 +69,8 @@ async def callback_query_handler(client: Client, callback_query):
     """Handle callback queries from inline buttons"""
     data = callback_query.data
     
+    settings = await db.get_bot_settings(client.me.id)
+
     if data == "about":
         about_text = (
             "<b>ℹ️ 𝖠𝖻𝗈𝗎𝗍 𝖳𝗁𝗂𝗌 𝖡𝗈𝗍</b>\n\n"
@@ -70,7 +90,7 @@ async def callback_query_handler(client: Client, callback_query):
         )
     
     elif data == "help":
-        help_text = (
+        help_text = settings.get("help_msg", (
             "<b>❓ 𝖧𝖾𝗅𝗉 & 𝖢𝗈𝗆𝗆𝖺𝗇𝖽𝗌</b>\n\n"
             "<b>𝖴𝗌𝖾𝗋 𝖢𝗈𝗆𝗆𝖺𝗇𝖽𝗌:</b>\n"
             "• /start - 𝖲𝗍𝖺𝗋𝗍 𝗍𝗁𝖾 𝖻𝗈𝗍\n\n"
@@ -88,25 +108,52 @@ async def callback_query_handler(client: Client, callback_query):
             "<b>𝖮𝗐𝗇𝖾𝗋 𝖢𝗈𝗆𝗆𝖺𝗇𝖽𝗌:</b>\n"
             "• /clone [𝖻𝗈𝗍_𝗍𝗈𝗄𝖾𝗇] - 𝖢𝗅𝗈𝗇𝖾 𝖺 𝗇𝖾𝗐 𝖻𝗈𝗍\n"
             "• /addadmin [𝗎𝗌𝖾𝗋_𝗂𝖽] - 𝖠𝖽𝖽 𝖺𝖽𝗆𝗂𝗇 𝗍𝗈 𝗍𝗁𝗂𝗌 𝖻𝗈𝗍\n"
-            "• /remadmin [𝗎𝗌𝖾𝗋_𝗂𝖽] - 𝖱𝖾𝗆𝗈𝗏𝖾 𝖺𝖽𝗆𝗂𝗇 𝖿𝗋𝗈𝗆 𝗍𝗁𝗂𝗌 𝖻𝗈𝗍\n\n"
+            "• /remadmin [𝗎𝗌𝖾𝗋_𝗂𝖽] - 𝖱𝖾𝗆𝗈𝗏𝖾 𝖺𝖽𝗆𝗂𝗇 𝖿𝗋𝗈𝗆 𝗍𝗁𝗂𝗌 𝖻𝗈𝗍\n"
+            "• /admin_list - 𝖫𝗂𝗌𝗍 𝖺𝗅𝗅 𝖺𝖽𝗆𝗂𝗇𝗌\n"
+            "• /settings - 𝖢𝗈𝗇𝖿𝗂𝗀𝗎𝗋𝖾 𝖻𝗈𝗍 𝗌𝖾𝗍𝗍𝗂𝗇𝗀𝗌\n\n"
             "<b>𝖧𝗈𝗐 𝗍𝗈 𝖴𝗌𝖾:</b>\n"
             "1. 𝖠𝖽𝖽 𝖻𝗈𝗍 𝖺𝗌 𝖺𝖽𝗆𝗂𝗇 𝗍𝗈 𝗒𝗈𝗎𝗋 𝖼𝗁𝖺𝗇𝗇𝖾𝗅/𝗀𝗋𝗈𝗎𝗉\n"
             "2. 𝖱𝖾𝗀𝗂𝗌𝗍𝖾𝗋 𝗂𝗍 𝗎𝗌𝗂𝗇𝗀 /setchannel\n"
             "3. 𝖦𝖾𝗇𝖾𝗋𝖺𝗍𝖾 𝗅𝗂𝗇𝗄𝗌 𝗎𝗌𝗂𝗇𝗀 /channelpost 𝗈𝗋 /reqpost\n"
             "4. 𝖲𝗁𝖺𝗋𝖾 𝗍𝗁𝖾 𝗀𝖾𝗇𝖾𝗋𝖺𝗍𝖾𝖽 𝗅𝗂𝗇𝗄𝗌 𝗐𝗂𝗍𝗁 𝗎𝗌𝖾𝗋𝗌"
-        )
+        ))
         await callback_query.message.edit_caption(
             caption=help_text,
             reply_markup=get_back_button_keyboard()
         )
     
     elif data == "back_to_start":
-        start_text = ("<b><blockquote>𝖡𝖺𝗄𝗄𝖺 {mention}!\n\n𝖨’𝗆 𝗍𝗁𝖾 𝖢𝗁𝖺𝗇𝗇𝖾𝗅 𝖫𝗂𝗇𝗄 𝖡𝗈𝗍 — 𝖨 𝖼𝗋𝖾𝖺𝗍𝖾 𝗌𝗆𝖺𝗋𝗍 𝗋𝖾𝖽𝗂𝗋𝖾𝖼𝗍 𝗅𝗂𝗇𝗄𝗌 𝖿𝗈𝗋 𝗒𝗈𝗎𝗋 𝖳𝖾𝗅𝖾𝗀𝗋𝖺𝗆 𝖼𝗁𝖺𝗇𝗇𝖾𝗅𝗌 𝗍𝗈 𝗁𝖾𝗅𝗉 𝖺𝗏𝗈𝗂𝖽 𝖼𝗈𝗉𝗒𝗋𝗂𝗀𝗁𝗍 𝗉𝗋𝗈𝖻𝗅𝖾𝗆𝗌 𝖺𝗇𝖽 𝗄𝖾𝖾𝗉 𝗍𝗁𝗂𝗇𝗀𝗌 𝗌𝖺𝖿𝖾.</blockquote></b>").format(mention=callback_query.from_user.mention)
+        start_text = settings.get("start_msg", "<b><blockquote>𝖡𝖺𝗄𝗄𝖺 {mention}!\n\n𝖨’𝗆 𝗍𝗁𝖾 𝖢𝗁𝖺𝗇𝗇𝖾𝗅 𝖫𝗂𝗇𝗄 𝖡𝗈𝗍 — 𝖨 𝖼𝗋𝖾𝖺𝗍𝖾 𝗌𝗆𝖺𝗋𝗍 𝗋𝖾𝖽𝗂𝗋𝖾𝖼𝗍 𝗅𝗂𝗇𝗄𝗌 𝖿𝗈𝗋 𝗒𝗈𝗎𝗋 𝖳𝖾𝗅𝖾𝗀𝗋𝖺𝗆 𝖼𝗁𝖺𝗇𝗇𝖾𝗅𝗌 𝗍𝗈 𝗁𝖾𝗅𝗉 𝖺𝗏𝗈𝗂𝖽 𝖼𝗈𝗉𝗒𝗋𝗂𝗀𝗁𝗍 𝗉𝗋𝗈𝖻𝗅𝖾𝗆𝗌 𝖺𝗇𝖽 𝗄𝖾𝖾𝗉 𝗍𝗁𝗂𝗇𝗀𝗌 𝗌𝖺𝖿𝖾.</blockquote></b>").format(mention=callback_query.from_user.mention)
+        is_adm = await db.is_admin(client.me.id, callback_query.from_user.id, ADMINS)
         await callback_query.message.edit_caption(
             caption=start_text,
-            reply_markup=get_start_keyboard()
+            reply_markup=get_start_keyboard(is_admin=is_adm)
         )
     
+    elif data == "settings":
+        await callback_query.message.edit_caption(
+            caption="<b>⚙️ 𝖡𝗈𝗍 𝖲𝖾𝗍𝗍𝗂𝗇𝗀𝗌</b>\n\n𝖢𝗁𝗈𝗈𝗌𝖾 𝗐𝗁𝖺𝗍 𝗒𝗈𝗎 𝗐𝖺𝗇𝗍 𝗍𝗈 𝖼𝗈𝗇𝖿𝗂𝗀𝗎𝗋𝖾:",
+            reply_markup=get_settings_keyboard()
+        )
+
+    elif data.startswith("set_"):
+        setting_type = data.split("_")[1]
+        prompts = {
+            "start": "𝖲𝖾𝗇𝖽 𝗍𝗁𝖾 𝗇𝖾𝗐 𝖲𝗍𝖺𝗋𝗍 𝖬𝖾𝗌𝗌𝖺𝗀𝖾.",
+            "help": "𝖲𝖾𝗇𝖽 𝗍𝗁𝖾 𝗇𝖾𝗐 𝖧𝖾𝗅𝗉 𝖬𝖾𝗌𝗌𝖺𝗀𝖾.",
+            "pic": "𝖲𝖾𝗇𝖽 𝗍𝗁𝖾 𝗇𝖾𝗐 𝖲𝗍𝖺𝗋𝗍 𝖨𝗆𝖺𝗀𝖾 𝖴𝖱𝖫.",
+            "btn": "𝖲𝖾𝗇𝖽 𝗍𝗁𝖾 𝗇𝖾𝗐 𝖡𝗎𝗍𝗍𝗈𝗇 𝖭𝖺𝗆𝖾." if data == "set_btn_name" else "𝖲𝖾𝗇𝖽 𝗍𝗁𝖾 𝗇𝖾𝗐 𝖡𝗎𝗍𝗍𝗈𝗇 𝖳𝖾𝗑𝗍."
+        }
+
+        prompt_text = prompts.get(setting_type, "𝖲𝖾𝗇𝖽 𝗍𝗁𝖾 𝗇𝖾𝗐 value.")
+        if data == "set_btn_name": prompt_text = prompts["btn"]
+        elif data == "set_btn_text": prompt_text = "𝖲𝖾𝗇𝖽 𝗍𝗁𝖾 𝗇𝖾𝗐 𝖡𝗎𝗍𝗍𝗈𝗇 𝖳𝖾𝗑𝗍 (𝖢𝖺𝗉𝗍𝗂𝗈𝗇)."
+
+        await callback_query.message.reply_text(
+            f"<b>{prompt_text}</b>\n\n𝖴𝗌𝖾 /cancel 𝗍𝗈 𝖺𝖻𝗈𝗋𝗍.",
+            reply_markup=ForceReply(selective=True)
+        )
+
     await callback_query.answer()
 
 # --- Handlers ---
@@ -114,20 +161,23 @@ async def callback_query_handler(client: Client, callback_query):
 async def start_handler(client: Client, message: Message):
     await db.update_user(client.me.id, message.from_user.id, message.from_user.first_name)
     args = message.text.split(" ", 1)
-    start_text = ("<b><blockquote>𝖡𝖺𝗄𝗄𝖺 {mention}!\n\n𝖨’𝗆 𝗍𝗁𝖾 𝖢𝗁𝖺𝗇𝗇𝖾𝗅 𝖫𝗂𝗇𝗄 𝖡𝗈𝗍 — 𝖨 𝖼𝗋𝖾𝖺𝗍𝖾 𝗌𝗆𝖺𝗋𝗍 𝗋𝖾𝖽𝗂𝗋𝖾𝖼𝗍 𝗅𝗂𝗇𝗄𝗌 𝖿𝗈𝗋 𝗒𝗈𝗎𝗋 𝖳𝖾𝗅𝖾𝗀𝗋𝖺𝗆 𝖼𝗁𝖺𝗇𝗇𝖾𝗅𝗌 𝗍𝗈 𝗁𝖾𝗅𝗉 𝖺𝗏𝗈𝗂𝖽 𝖼𝗈𝗉𝗒𝗋𝗂𝗀𝗁𝗍 𝗉𝗋𝗈𝖻𝗅𝖾𝗆𝗌 𝖺𝗇𝖽 𝗄𝖾𝖾𝗉 𝗍𝗁𝗂𝗇𝗀𝗌 𝗌𝖺𝖿𝖾.</blockquote></b>").format(mention=message.from_user.mention)
+    settings = await db.get_bot_settings(client.me.id)
+    start_text = settings.get("start_msg", "<b><blockquote>𝖡𝖺𝗄𝗄𝖺 {mention}!\n\n𝖨’𝗆 𝗍𝗁𝖾 𝖢𝗁𝖺𝗇𝗇𝖾𝗅 𝖫𝗂𝗇𝗄 𝖡𝗈𝗍 — 𝖨 𝖼𝗋𝖾𝖺𝗍𝖾 𝗌𝗆𝖺𝗋𝗍 𝗋𝖾𝖽𝗂𝗋𝖾𝖼𝗍 𝗅𝗂𝗇𝗄𝗌 𝖿𝗈𝗋 𝗒𝗈𝗎𝗋 𝖳𝖾𝗅𝖾𝗀𝗋𝖺𝗆 𝖼𝗁𝖺𝗇𝗇𝖾𝗅𝗌 𝗍𝗈 𝗁𝖾𝗅𝗉 𝖺𝗏𝗈𝗂𝖽 𝖼𝗈𝗉𝗒𝗋𝗂𝗀𝗁𝗍 𝗉𝗋𝗈𝖻𝗅𝖾𝗆𝗌 𝖺𝗇𝖽 𝗄𝖾𝖾𝗉 𝗍𝗁𝗂𝗇𝗀𝗌 𝗌𝖺𝖿𝖾.</blockquote></b>").format(mention=message.from_user.mention)
     
     if len(args) == 1:
         # Main start message with About and Help buttons
-        if START_PIC:
+        is_adm = await db.is_admin(client.me.id, message.from_user.id, ADMINS)
+        pic = settings.get("start_pic", START_PIC)
+        if pic:
             return await message.reply_photo(
-                START_PIC,
+                pic,
                 caption=start_text,
-                reply_markup=get_start_keyboard()
+                reply_markup=get_start_keyboard(is_admin=is_adm)
             )
         else:
             return await message.reply(
                 start_text,
-                reply_markup=get_start_keyboard(),
+                reply_markup=get_start_keyboard(is_admin=is_adm),
                 disable_web_page_preview=True
             )
     
@@ -161,21 +211,22 @@ async def start_handler(client: Client, message: Message):
                 creates_join_request=True,
                 name=link_name
             )
-            text = "𝖱𝖾𝗊𝗎𝖾𝗌𝗍 𝗍𝗈 𝖩𝗈𝗂𝗇: 𝗉𝗈𝗐𝖾𝗋𝖾𝖽 𝖻𝗒 @Vecna_Bots\n<i>𝖳𝗁𝗂𝗌 𝗅𝗂𝗇𝗄 𝗋𝖾𝗊𝗎𝗂𝗋𝖾𝗌 𝖺𝖽𝗆𝗂𝗇 𝖺𝗉𝗉𝗋𝗈𝗏𝖺𝗅. 𝖮𝗇𝗅𝗒 𝗒𝗈𝗎 𝖼𝖺𝗇 𝗎𝗌𝖾 𝗂𝗍.</i>"
-            pic = LINK_PIC or START_PIC
+            text = settings.get("btn_text", "𝖱𝖾𝗊𝗎𝖾𝗌𝗍 𝗍𝗈 𝖩𝗈𝗂𝗇: 𝗉𝗈𝗐𝖾𝗋𝖾𝖽 𝖻𝗒 @Vecna_Bots\n<i>𝖳𝗁𝗂𝗌 𝗅𝗂𝗇𝗄 𝗋𝖾𝗊𝗎𝗂𝗋𝖾𝗌 𝖺𝖽𝗆𝗂𝗇 𝖺𝗉𝗉𝗋𝗈𝗏𝖺𝗅. 𝖮𝗇𝗅𝗒 𝗒𝗈𝗎 𝖼𝖺𝗇 𝗎𝗌𝖾 𝗂𝗍.</i>")
+            pic = settings.get("start_pic", LINK_PIC or START_PIC)
+            btn_name = settings.get("btn_name", "「𝖱𝖾𝗊𝗎𝖾𝗌𝗍 𝗍𝗈 𝖩𝗈𝗂𝗇」")
             if pic:
                 sent = await message.reply_photo(
                     pic,
                     caption=text,
                     reply_markup=InlineKeyboardMarkup(
-                        [[InlineKeyboardButton("「𝖱𝖾𝗊𝗎𝖾𝗌𝗍 𝗍𝗈 𝖩𝗈𝗂𝗇」", url=invite.invite_link)]]
+                        [[InlineKeyboardButton(btn_name, url=invite.invite_link)]]
                     )
                 )
             else:
                 sent = await message.reply(
                     text,
                     reply_markup=InlineKeyboardMarkup(
-                        [[InlineKeyboardButton("「𝖱𝖾𝗊𝗎𝖾𝗌𝗍 𝗍𝗈 𝖩𝗈𝗂𝗇」", url=invite.invite_link)]]
+                        [[InlineKeyboardButton(btn_name, url=invite.invite_link)]]
                     ),
                     disable_web_page_preview=True
                 )
@@ -194,21 +245,22 @@ async def start_handler(client: Client, message: Message):
                 expire_date=datetime.now(timezone.utc) + timedelta(minutes=10),
                 member_limit=1
             )
-            text = "𝖧𝖾𝗋𝖾 𝗂𝗌 𝗒𝗈𝗎𝗋 𝗅𝗂𝗇𝗄! 𝖢𝗅𝗂𝖼𝗄 𝖻𝖾𝗅𝗈𝗐 𝗍𝗈 𝗉𝗋𝗈𝖼𝖾𝖾𝗅: 𝗉𝗈𝗐𝖾𝗋𝖾𝖽 𝖻𝗒 :- @Vecna_Bots "
-            pic = LINK_PIC or START_PIC
+            text = settings.get("btn_text", "𝖧𝖾𝗋𝖾 𝗂𝗌 𝗒𝗈𝗎𝗋 𝗅𝗂𝗇𝗄! 𝖢𝗅𝗂𝖼𝗄 𝖻𝖾𝗅𝗈𝗐 𝗍𝗈 𝗉𝗋𝗈𝖼𝖾𝖾𝗅: 𝗉𝗈𝗐𝖾𝗋𝖾𝖽 𝖻𝗒 :- @Vecna_Bots ")
+            pic = settings.get("start_pic", LINK_PIC or START_PIC)
+            btn_name = settings.get("btn_name", "「𝖩𝗈𝗂𝗇 𝖢𝗁𝖺𝗇𝗇𝖾𝗅」")
             if pic:
                 sent = await message.reply_photo(
                     pic,
                     caption=text,
                     reply_markup=InlineKeyboardMarkup(
-                        [[InlineKeyboardButton("「𝖩𝗈𝗂𝗇 𝖢𝗁𝖺𝗇𝗇𝖾𝗅」", url=invite.invite_link)]]
+                        [[InlineKeyboardButton(btn_name, url=invite.invite_link)]]
                     )
                 )
             else:
                 sent = await message.reply(
                     text,
                     reply_markup=InlineKeyboardMarkup(
-                        [[InlineKeyboardButton("「𝖩𝗈𝗂𝗇 𝖢𝗁𝖺𝗇𝗇𝖾𝗅」", url=invite.invite_link)]]
+                        [[InlineKeyboardButton(btn_name, url=invite.invite_link)]]
                     ),
                     disable_web_page_preview=True
                 )
@@ -436,35 +488,94 @@ async def clone_handler(client: Client, message: Message):
         await message.reply(f"❌ 𝖤𝗋𝗋𝗈𝗋 𝖽𝗎𝗋𝗂𝗇𝗀 𝖼𝗅𝗈𝗇𝗂𝗇𝗀: {e}")
 
 async def add_admin_handler(client: Client, message: Message):
-    if len(message.command) != 2:
-        return await message.reply("𝖴𝗌𝖺𝗀𝖾: /addadmin USER_ID")
+    if message.reply_to_message:
+        admin_id = message.reply_to_message.from_user.id
+    elif len(message.command) == 2:
+        try:
+            admin_id = int(message.command[1])
+        except ValueError:
+            return await message.reply("❌ 𝖴𝗌𝖾𝗋 𝖨𝖣 𝗆𝗎𝗌𝗍 𝖻𝖾 𝖺𝗇 𝗂𝗇𝗍𝖾𝗀𝖾𝗋.")
+    else:
+        return await message.reply("𝖴𝗌𝖺𝗀𝖾: /addadmin USER_ID 𝗈𝗋 𝗋𝖾𝗉𝗅𝗒 𝗍𝗈 𝖺 𝗆𝖾𝗌𝗌𝖺𝗀𝖾.")
 
-    try:
-        admin_id = int(message.command[1])
-        await db.add_admin(client.me.id, admin_id)
-        await message.reply(f"✅ 𝖴𝗌𝖾𝗋 {admin_id} 𝖺𝖽𝖽𝖾𝖽 𝖺𝗌 𝖺𝖽𝗆𝗂𝗇 𝖿𝗈𝗋 𝗍𝗁𝗂𝗌 𝖻𝗈𝗍.")
-    except ValueError:
-        await message.reply("❌ 𝖴𝗌𝖾𝗋 𝖨𝖣 𝗆𝗎𝗌𝗍 𝖻𝖾 𝖺𝗇 𝗂𝗇𝗍𝖾𝗀𝖾𝗋.")
+    await db.add_admin(client.me.id, admin_id)
+    await message.reply(f"✅ 𝖴𝗌𝖾𝗋 {admin_id} 𝖺𝖽𝖽𝖾𝖽 𝖺𝗌 𝖺𝖽𝗆𝗂𝗇 𝖿𝗈𝗋 𝗍𝗁𝗂𝗌 𝖻𝗈𝗍.")
 
 async def rem_admin_handler(client: Client, message: Message):
-    if len(message.command) != 2:
-        return await message.reply("𝖴𝗌𝖺𝗀𝖾: /remadmin USER_ID")
+    if message.reply_to_message:
+        admin_id = message.reply_to_message.from_user.id
+    elif len(message.command) == 2:
+        try:
+            admin_id = int(message.command[1])
+        except ValueError:
+            return await message.reply("❌ 𝖴𝗌𝖾𝗋 𝖨𝖣 𝗆𝗎𝗌𝗍 𝖻𝖾 𝖺𝗇 𝗂𝗇𝗍𝖾𝗀𝖾𝗋.")
+    else:
+        return await message.reply("𝖴𝗌𝖺𝗀𝖾: /remadmin USER_ID 𝗈𝗋 𝗋𝖾𝗉𝗅𝗒 𝗍𝗈 𝖺 𝗆𝖾𝗌𝗌𝖺𝗀𝖾.")
 
-    try:
-        admin_id = int(message.command[1])
-        await db.remove_admin(client.me.id, admin_id)
-        await message.reply(f"✅ 𝖴𝗌𝖾𝗋 {admin_id} 𝗋𝖾𝗆𝗈𝗏𝖾𝖽 𝖿𝗋𝗈𝗆 𝖺𝖽𝗆𝗂𝗇𝗌 𝖿𝗈𝗋 𝗍𝗁𝗂𝗌 𝖻𝗈𝗍.")
-    except ValueError:
-        await message.reply("❌ 𝖴𝗌𝖾𝗋 𝖨𝖣 𝗆𝗎𝗌𝗍 𝖻𝖾 𝖺𝗇 𝗂𝗇𝗍𝖾𝗀𝖾𝗋.")
+    await db.remove_admin(client.me.id, admin_id)
+    await message.reply(f"✅ 𝖴𝗌𝖾𝗋 {admin_id} 𝗋𝖾𝗆𝗈𝗏𝖾𝖽 𝖿𝗋𝗈𝗆 𝖺𝖽𝗆𝗂𝗇𝗌 𝖿𝗈𝗋 𝗍𝗁𝗂𝗌 𝖻𝗈𝗍.")
+
+async def settings_handler(client: Client, message: Message):
+    if START_PIC:
+        await message.reply_photo(
+            START_PIC,
+            caption="<b>⚙️ 𝖡𝗈𝗍 𝖲𝖾𝗍𝗍𝗂𝗇𝗀𝗌</b>\n\n𝖢𝗁𝗈𝗈𝗌𝖾 𝗐𝗁𝖺𝗍 𝗒𝗈𝗎 𝗐𝖺𝗇𝗍 𝗍𝗈 𝖼𝗈𝗇𝖿𝗂𝗀𝗎𝗋𝖾:",
+            reply_markup=get_settings_keyboard()
+        )
+    else:
+        await message.reply(
+            "<b>⚙️ 𝖡𝗈𝗍 𝖲𝖾𝗍𝗍𝗂𝗇𝗀𝗌</b>\n\n𝖢𝗁𝗈𝗈𝗌𝖾 𝗐𝗁𝖺𝗍 𝗒𝗈𝗎 𝗐𝖺𝗇𝗍 𝗍𝗈 𝖼𝗈𝗇𝖿𝗂𝗀𝗎𝗋𝖾:",
+            reply_markup=get_settings_keyboard()
+        )
+
+async def settings_input_handler(client: Client, message: Message):
+    if not message.reply_to_message or not message.reply_to_message.reply_markup or not isinstance(message.reply_to_message.reply_markup, ForceReply):
+        return
+
+    if message.text == "/cancel":
+        return await message.reply("❌ 𝖮𝗉𝖾𝗋𝖺𝗍𝗂𝗈𝗇 𝖼𝖺𝗇𝖼𝖾𝗅𝗅𝖾𝖽.")
+
+    prompt = message.reply_to_message.text
+    key = None
+    if "𝖲𝗍𝖺𝗋𝗍 𝖬𝖾𝗌𝗌𝖺𝗀𝖾" in prompt: key = "start_msg"
+    elif "𝖧𝖾𝗅𝗉 𝖬𝖾𝗌𝗌𝖺𝗀𝖾" in prompt: key = "help_msg"
+    elif "𝖲𝗍𝖺𝗋𝗍 𝖨𝗆𝖺𝗀𝖾 𝖴𝖱𝖫" in prompt: key = "start_pic"
+    elif "𝖡𝗎𝗍𝗍𝗈𝗇 𝖭𝖺𝗆𝖾" in prompt: key = "btn_name"
+    elif "𝖡𝗎𝗍𝗍𝗈𝗇 𝖳𝖾𝗑𝗍" in prompt: key = "btn_text"
+
+    if key:
+        await db.update_bot_setting(client.me.id, key, message.text)
+        await message.reply(f"✅ 𝖲𝗎𝖼𝖼𝖾𝗌𝗌𝖿𝗎𝗅𝗅𝗒 𝗎𝗉𝖽𝖺𝗍𝖾𝖽 {key.replace('_', ' ').title()}!")
+
+async def admin_list_handler(client: Client, message: Message):
+    bot = await db.get_bot(client.me.id)
+    if not bot:
+        return await message.reply("❌ 𝖡𝗈𝗍 𝗇𝗈𝗍 𝖿𝗈𝗎𝗇𝖽 𝗂𝗇 𝖽𝖺𝗍𝖺𝖻𝖺𝗌𝖾.")
+
+    owner_id = bot.get('owner_id')
+    admins = bot.get('admins', [])
+
+    text = f"<b>👑 𝖮𝗐𝗇𝖾𝗋:</b> `{owner_id}`\n\n"
+    if admins:
+        text += "<b>👤 𝖠𝖽𝗆𝗂𝗇𝗌:</b>\n"
+        for admin_id in admins:
+            text += f"• `{admin_id}`\n"
+    else:
+        text += "<i>𝖭𝗈 𝖺𝖽𝗆𝗂𝗇𝗌 𝖺𝖽𝖽𝖾𝖽 𝗍𝗈 𝗍𝗁𝗂𝗌 𝖻𝗈𝗍.</i>"
+
+    await message.reply(text)
 
 # --- Initialization ---
 
 def register_all_handlers(client: Client):
     client.add_handler(MessageHandler(start_handler, filters.command("start")))
     client.add_handler(CallbackQueryHandler(callback_query_handler))
+    client.add_handler(MessageHandler(settings_input_handler, filters.reply & filters.private))
+    client.add_handler(MessageHandler(settings_handler, filters.command("settings") & filters.private & is_owner))
     client.add_handler(MessageHandler(clone_handler, filters.command("clone") & filters.private))
     client.add_handler(MessageHandler(add_admin_handler, filters.command("addadmin") & filters.private & is_owner))
     client.add_handler(MessageHandler(rem_admin_handler, filters.command("remadmin") & filters.private & is_owner))
+    client.add_handler(MessageHandler(admin_list_handler, filters.command("admin_list") & filters.private & is_owner))
     client.add_handler(MessageHandler(set_channel_handler, filters.command("setchannel") & filters.private & is_admin))
     client.add_handler(MessageHandler(delete_channel_handler, filters.command("delchannel") & filters.private & is_admin))
     client.add_handler(MessageHandler(channel_post_handler, filters.command("channelpost") & filters.private & is_admin))
@@ -472,7 +583,7 @@ def register_all_handlers(client: Client):
     client.add_handler(MessageHandler(broadcast_handler, filters.command("broadcast") & filters.private & is_admin))
     client.add_handler(MessageHandler(users_list_handler, filters.command("users") & filters.private & is_admin))
     client.add_handler(MessageHandler(stats_handler, filters.command("stats") & filters.private & is_admin))
-    client.add_handler(MessageHandler(bots_handler, filters.command("bots") & filters.private & is_admin))
+    client.add_handler(MessageHandler(bots_handler, filters.command(["bots", "bot"]) & filters.private & is_main_owner))
 
 async def main():
     # Start Master Bot
