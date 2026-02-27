@@ -1,4 +1,5 @@
 from motor.motor_asyncio import AsyncIOMotorClient
+from datetime import datetime, timedelta, timezone
 from config import MONGO_URI
 
 class Database:
@@ -8,13 +9,16 @@ class Database:
         self.bots = self.db['bots']
         self.users = self.db['users']
         self.channels = self.db['channels']
+        self.settings = self.db['settings']
+        self.tokens = self.db['tokens']
         self._settings_cache = {}
 
     # Bot management
     async def add_bot(self, bot_id, token, owner_id, username):
+        expiry = datetime.now(timezone.utc) + timedelta(days=7)
         await self.bots.update_one(
             {"_id": bot_id},
-            {"$set": {"token": token, "owner_id": owner_id, "username": username}},
+            {"$set": {"token": token, "owner_id": owner_id, "username": username, "expiry": expiry}},
             upsert=True
         )
 
@@ -23,6 +27,15 @@ class Database:
 
     async def get_all_bots(self):
         return await self.bots.find().to_list(length=None)
+
+    async def get_owner_bots(self, owner_id):
+        return await self.bots.find({"owner_id": owner_id}).to_list(length=None)
+
+    async def update_bot_expiry(self, bot_id, expiry_date):
+        await self.bots.update_one(
+            {"_id": bot_id},
+            {"$set": {"expiry": expiry_date}}
+        )
 
     async def get_bot_count(self):
         return await self.bots.count_documents({})
@@ -134,5 +147,38 @@ class Database:
 
     async def get_channel_count(self, bot_id):
         return await self.channels.count_documents({"bot_id": bot_id})
+
+    # Global settings
+    async def set_global_setting(self, key, value):
+        await self.settings.update_one(
+            {"_id": key},
+            {"$set": {"value": value}},
+            upsert=True
+        )
+
+    async def get_global_setting(self, key):
+        setting = await self.settings.find_one({"_id": key})
+        return setting["value"] if setting else None
+
+    # Token management
+    async def create_renewal_token(self, bot_id, user_id):
+        import uuid
+        token = str(uuid.uuid4())
+        await self.tokens.insert_one({
+            "token": token,
+            "bot_id": bot_id,
+            "user_id": user_id,
+            "created_at": datetime.now(timezone.utc)
+        })
+        # Ensure TTL index
+        await self.tokens.create_index("created_at", expireAfterSeconds=600)
+        return token
+
+    async def verify_renewal_token(self, token):
+        res = await self.tokens.find_one({"token": token})
+        if res:
+            await self.tokens.delete_one({"token": token})
+            return res
+        return None
 
 db = Database(MONGO_URI, "invite_bot")
