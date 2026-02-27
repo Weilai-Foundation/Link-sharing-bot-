@@ -8,7 +8,7 @@ from datetime import datetime, timedelta, timezone
 
 from config import API_ID, API_HASH, BOT_TOKEN, ADMINS, START_PIC, LINK_PIC
 from database import db
-from utils import encode_channel_id, decode_channel_id
+from utils import encode_channel_id, decode_channel_id, font_style
 
 # Global list to store all clients
 running_clients = []
@@ -34,33 +34,33 @@ def get_start_keyboard(is_admin=False):
     """Returns the inline keyboard for start message with About and Help buttons"""
     buttons = [
         [
-            InlineKeyboardButton("📚 𝖠𝖻𝗈𝗎𝗍", callback_data="about"),
-            InlineKeyboardButton("❓ 𝖧𝖾𝗅𝗉", callback_data="help")
+            InlineKeyboardButton(font_style("📚 About"), callback_data="about"),
+            InlineKeyboardButton(font_style("❓ Help"), callback_data="help")
         ],
         [
-            InlineKeyboardButton("📢 𝖢𝗁𝖺𝗇𝗇𝖾𝗅", url="https://t.me/Vecna_Bots"),
-            InlineKeyboardButton("👥 𝖲𝗎𝗉𝗉𝗈𝗋𝗍", url="https://t.me/Vecna_Suppprt")
+            InlineKeyboardButton(font_style("📢 Channel"), url="https://t.me/Vecna_Bots"),
+            InlineKeyboardButton(font_style("👥 Support"), url="https://t.me/Vecna_Suppprt")
         ]
     ]
     if is_admin:
-        buttons.append([InlineKeyboardButton("⚙️ Settings", callback_data="settings")])
+        buttons.append([InlineKeyboardButton(font_style("⚙️ Settings"), callback_data="settings")])
     return InlineKeyboardMarkup(buttons)
 
 def get_back_button_keyboard():
     """Returns keyboard with back button to return to start menu"""
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("🔙 𝖡𝖺𝖼𝗄 𝗍𝗈 𝖲𝗍𝖺𝗋𝗍", callback_data="back_to_start")]
+        [InlineKeyboardButton(font_style("🔙 Back to Start"), callback_data="back_to_start")]
     ])
 
 def get_settings_keyboard():
     """Returns the keyboard for settings menu"""
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("📝 Start Message", callback_data="set_start_msg")],
-        [InlineKeyboardButton("ℹ️ Help Message", callback_data="set_help_msg")],
-        [InlineKeyboardButton("🖼️ Start Image URL", callback_data="set_start_pic")],
-        [InlineKeyboardButton("🔘 Button Name", callback_data="set_btn_name")],
-        [InlineKeyboardButton("📄 Button Text", callback_data="set_btn_text")],
-        [InlineKeyboardButton("🔙 Back", callback_data="back_to_start")]
+        [InlineKeyboardButton(font_style("📝 Start Message"), callback_data="set_start_msg")],
+        [InlineKeyboardButton(font_style("ℹ️ Help Message"), callback_data="set_help_msg")],
+        [InlineKeyboardButton(font_style("🖼️ Start Image URL"), callback_data="set_start_pic")],
+        [InlineKeyboardButton(font_style("🔘 Button Name"), callback_data="set_btn_name")],
+        [InlineKeyboardButton(font_style("📄 Button Text"), callback_data="set_btn_text")],
+        [InlineKeyboardButton(font_style("🔙 Back"), callback_data="back_to_start")]
     ])
 
 # --- Callback Query Handler ---
@@ -72,17 +72,17 @@ async def callback_query_handler(client: Client, callback_query):
     settings = await db.get_bot_settings(client.me.id)
 
     if data == "about":
-        about_text = (
-            "<b>ℹ️ 𝖠𝖻𝗈𝗎𝗍 𝖳𝗁𝗂𝗌 𝖡𝗈𝗍</b>\n\n"
-            "<b>𝖢𝗁𝖺𝗇𝗇𝖾𝗅 𝖫𝗂𝗇𝗄 𝖡𝗈𝗍</b> - 𝖠 𝗉𝗈𝗐𝖾𝗋𝖿𝗎𝗅 𝖻𝗈𝗍 𝗍𝗁𝖺𝗍 𝖼𝗋𝖾𝖺𝗍𝖾𝗌 𝗌𝗆𝖺𝗋𝗍 𝗋𝖾𝖽𝗂𝗋𝖾𝖼𝗍 𝗅𝗂𝗇𝗄𝗌 𝖿𝗈𝗋 𝗒𝗈𝗎𝗋 𝖳𝖾𝗅𝖾𝗀𝗋𝖺𝗆 𝖼𝗁𝖺𝗇𝗇𝖾𝗅𝗌 𝖺𝗇𝖽 𝗀𝗋𝗈𝗎𝗉𝗌.\n\n"
-            "<b>𝖥𝖾𝖺𝗍𝗎𝗋𝖾𝗌:</b>\n"
-            "• 𝖢𝗋𝖾𝖺𝗍𝖾 𝗍𝖾𝗆𝗉𝗈𝗋𝖺𝗋𝗒 𝗃𝗈𝗂𝗇 𝗅𝗂𝗇𝗄𝗌 (10-𝗆𝗂𝗇𝗎𝗍𝖾 𝖾𝗑𝗉𝗂𝗋𝗒)\n"
-            "• 𝖢𝗋𝖾𝖺𝗍𝖾 𝗋𝖾𝗊𝗎𝖾𝗌𝗍-𝗍𝗈-𝗃𝗈𝗂𝗇 𝗅𝗂𝗇𝗄𝗌 (𝖺𝖽𝗆𝗂𝗇 𝖺𝗉𝗉𝗋𝗈𝗏𝖺𝗅 𝗋𝖾𝗊𝗎𝗂𝗋𝖾𝖽)\n"
-            "• 𝖲𝗎𝗉𝗉𝗈𝗋𝗍 𝖿𝗈𝗋 𝖼𝗁𝖺𝗇𝗇𝖾𝗅𝗌, 𝗀𝗋𝗈𝗎𝗉𝗌, 𝖺𝗇𝖽 𝗌𝗎𝗉𝖾𝗋𝗀𝗋𝗈𝗎𝗉𝗌\n"
-            "• 𝖬𝗎𝗅𝗍𝗂-𝖻𝗈𝗍 𝖼𝗅𝗈𝗇𝗂𝗇𝗀 𝗌𝗎𝗉𝗉𝗈𝗋𝗍 (𝗎𝗉 𝗍𝗈 100 𝖻𝗈𝗍𝗌)\n"
-            "• 𝖠𝖽𝗆𝗂𝗇 𝗆𝖺𝗇𝖺𝗀𝖾𝗆𝖾𝗇𝗍 𝗌𝗒𝗌𝗍𝖾𝗆\n\n"
-            "<b>𝖣𝖾𝗏𝖾𝗅𝗈𝗉𝖾𝗋:</b> @Vecna_Bots\n"
-            "<b>𝖯𝗈𝗐𝖾𝗋𝖾𝖽 𝖻𝗒:</b> @Vecna_Bots"
+        about_text = font_style(
+            "<b>ℹ️ About This Bot</b>\n\n"
+            "<b>Channel Link Bot</b> - A powerful bot that creates smart redirect links for your Telegram channels and groups.\n\n"
+            "<b>Features:</b>\n"
+            "• Create temporary join links (10-minute expiry)\n"
+            "• Create request-to-join links (admin approval required)\n"
+            "• Support for channels, groups, and supergroups\n"
+            "• Multi-bot cloning support (up to 100 bots)\n"
+            "• Admin management system\n\n"
+            "<b>Developer:</b> @Vecna_Bots\n"
+            "<b>Powered by:</b> @Vecna_Bots"
         )
         await callback_query.message.edit_caption(
             caption=about_text,
@@ -90,40 +90,49 @@ async def callback_query_handler(client: Client, callback_query):
         )
     
     elif data == "help":
-        help_text = settings.get("help_msg", (
-            "<b>❓ 𝖧𝖾𝗅𝗉 & 𝖢𝗈𝗆𝗆𝖺𝗇𝖽𝗌</b>\n\n"
-            "<b>𝖴𝗌𝖾𝗋 𝖢𝗈𝗆𝗆𝖺𝗇𝖽𝗌:</b>\n"
-            "• /start - 𝖲𝗍𝖺𝗋𝗍 𝗍𝗁𝖾 𝖻𝗈𝗍\n\n"
-            "<b>𝖠𝖽𝗆𝗂𝗇 𝖢𝗈𝗆𝗆𝖺𝗇𝖽𝗌:</b>\n"
-            "• /setchannel [@username/𝗂𝖽] - 𝖱𝖾𝗀𝗂𝗌𝗍𝖾𝗋 𝖺 𝖼𝗁𝖺𝗇𝗇𝖾𝗅/𝗀𝗋𝗈𝗎𝗉\n"
-            "• /delchannel [@username/𝗂𝖽] - 𝖱𝖾𝗆𝗈𝗏𝖾 𝖺 𝖼𝗁𝖺𝗇𝗇𝖾𝗅/𝗀𝗋𝗈𝗎𝗉\n"
-            "• /channelpost - 𝖦𝖾𝗍 𝖺𝗅𝗅 𝗍𝖾𝗆𝗉𝗈𝗋𝖺𝗋𝗒 𝗃𝗈𝗂𝗇 𝗅𝗂𝗇𝗄𝗌\n"
-            "• /channelpost [@username/𝗂𝖽] - 𝖦𝖾𝗍 𝗌𝗉𝖾𝖼𝗂𝖿𝗂𝖼 𝖼𝗁𝖺𝗇𝗇𝖾𝗅 𝗅𝗂𝗇𝗄\n"
-            "• /reqpost - 𝖦𝖾𝗍 𝖺𝗅𝗅 𝗋𝖾𝗊𝗎𝖾𝗌𝗍-𝗍𝗈-𝗃𝗈𝗂𝗇 𝗅𝗂𝗇𝗄𝗌\n"
-            "• /reqpost [@username/𝗂𝖽] - 𝖦𝖾𝗍 𝗌𝗉𝖾𝖼𝗂𝖿𝗂𝖼 𝗋𝖾𝗊𝗎𝖾𝗌𝗍 𝗅𝗂𝗇𝗄\n"
-            "• /broadcast - 𝖡𝗋𝗈𝖺𝖽𝖼𝖺𝗌𝗍 𝗆𝖾𝗌𝗌𝖺𝗀𝖾 (𝗋𝖾𝗉𝗅𝗒 𝗍𝗈 𝖺 𝗆𝖾𝗌𝗌𝖺𝗀𝖾)\n"
-            "• /users - 𝖦𝖾𝗍 𝗍𝗈𝗍𝖺𝗅 𝗎𝗌𝖾𝗋 𝖼𝗈𝗎𝗇𝗍\n"
-            "• /stats - 𝖦𝖾𝗍 𝖻𝗈𝗍 𝗌𝗍𝖺𝗍𝗂𝗌𝗍𝗂𝖼𝗌\n"
-            "• /bots - 𝖫𝗂𝗌𝗍 𝖺𝗅𝗅 𝖼𝗅𝗈𝗇𝖾𝖽 𝖻𝗈𝗍𝗌\n\n"
-            "<b>𝖮𝗐𝗇𝖾𝗋 𝖢𝗈𝗆𝗆𝖺𝗇𝖽𝗌:</b>\n"
-            "• /clone [𝖻𝗈𝗍_𝗍𝗈𝗄𝖾𝗇] - 𝖢𝗅𝗈𝗇𝖾 𝖺 𝗇𝖾𝗐 𝖻𝗈𝗍\n"
-            "• /addadmin [𝗎𝗌𝖾𝗋_𝗂𝖽] - 𝖠𝖽𝖽 𝖺𝖽𝗆𝗂𝗇 𝗍𝗈 𝗍𝗁𝗂𝗌 𝖻𝗈𝗍\n"
-            "• /remadmin [𝗎𝗌𝖾𝗋_𝗂𝖽] - 𝖱𝖾𝗆𝗈𝗏𝖾 𝖺𝖽𝗆𝗂𝗇 𝖿𝗋𝗈𝗆 𝗍𝗁𝗂𝗌 𝖻𝗈𝗍\n"
-            "• /admin_list - 𝖫𝗂𝗌𝗍 𝖺𝗅𝗅 𝖺𝖽𝗆𝗂𝗇𝗌\n"
-            "• /settings - 𝖢𝗈𝗇𝖿𝗂𝗀𝗎𝗋𝖾 𝖻𝗈𝗍 𝗌𝖾𝗍𝗍𝗂𝗇𝗀𝗌\n\n"
-            "<b>𝖧𝗈𝗐 𝗍𝗈 𝖴𝗌𝖾:</b>\n"
-            "1. 𝖠𝖽𝖽 𝖻𝗈𝗍 𝖺𝗌 𝖺𝖽𝗆𝗂𝗇 𝗍𝗈 𝗒𝗈𝗎𝗋 𝖼𝗁𝖺𝗇𝗇𝖾𝗅/𝗀𝗋𝗈𝗎𝗉\n"
-            "2. 𝖱𝖾𝗀𝗂𝗌𝗍𝖾𝗋 𝗂𝗍 𝗎𝗌𝗂𝗇𝗀 /setchannel\n"
-            "3. 𝖦𝖾𝗇𝖾𝗋𝖺𝗍𝖾 𝗅𝗂𝗇𝗄𝗌 𝗎𝗌𝗂𝗇𝗀 /channelpost 𝗈𝗋 /reqpost\n"
-            "4. 𝖲𝗁𝖺𝗋𝖾 𝗍𝗁𝖾 𝗀𝖾𝗇𝖾𝗋𝖺𝗍𝖾𝖽 𝗅𝗂𝗇𝗄𝗌 𝗐𝗂𝗍𝗁 𝗎𝗌𝖾𝗋𝗌"
-        ))
+        help_text = settings.get("help_msg")
+        if help_text:
+            help_text = font_style(help_text)
+        else:
+            help_text = font_style(
+                "<b>❓ Help & Commands</b>\n\n"
+                "<b>User Commands:</b>\n"
+                "• /start - Start the bot\n\n"
+                "<b>Admin Commands:</b>\n"
+                "• /setchannel [@username/id] - Register a channel/group\n"
+                "• /delchannel [@username/id] - Remove a channel/group\n"
+                "• /channelpost - Get all temporary join links\n"
+                "• /channelpost [@username/id] - Get specific channel link\n"
+                "• /reqpost - Get all request-to-join links\n"
+                "• /reqpost [@username/id] - Get specific request link\n"
+                "• /broadcast - Broadcast message (reply to a message)\n"
+                "• /users - Get total user count\n"
+                "• /stats - Get bot statistics\n"
+                "• /bots - List all cloned bots\n\n"
+                "<b>Owner Commands:</b>\n"
+                "• /clone [bot_token] - Clone a new bot\n"
+                "• /addadmin [user_id] - Add admin to this bot\n"
+                "• /remadmin [user_id] - Remove admin from this bot\n"
+                "• /admin_list - List all admins\n"
+                "• /settings - Configure bot settings\n\n"
+                "<b>How to Use:</b>\n"
+                "1. Add bot as admin to your channel/group\n"
+                "2. Register it using /setchannel\n"
+                "3. Generate links using /channelpost or /reqpost\n"
+                "4. Share the generated links with users"
+            )
         await callback_query.message.edit_caption(
             caption=help_text,
             reply_markup=get_back_button_keyboard()
         )
     
     elif data == "back_to_start":
-        start_text = settings.get("start_msg", "<b><blockquote>𝖡𝖺𝗄𝗄𝖺 {mention}!\n\n𝖨’𝗆 𝗍𝗁𝖾 𝖢𝗁𝖺𝗇𝗇𝖾𝗅 𝖫𝗂𝗇𝗄 𝖡𝗈𝗍 — 𝖨 𝖼𝗋𝖾𝖺𝗍𝖾 𝗌𝗆𝖺𝗋𝗍 𝗋𝖾𝖽𝗂𝗋𝖾𝖼𝗍 𝗅𝗂𝗇𝗄𝗌 𝖿𝗈𝗋 𝗒𝗈𝗎𝗋 𝖳𝖾𝗅𝖾𝗀𝗋𝖺𝗆 𝖼𝗁𝖺𝗇𝗇𝖾𝗅𝗌 𝗍𝗈 𝗁𝖾𝗅𝗉 𝖺𝗏𝗈𝗂𝖽 𝖼𝗈𝗉𝗒𝗋𝗂𝗀𝗁𝗍 𝗉𝗋𝗈𝖻𝗅𝖾𝗆𝗌 𝖺𝗇𝖽 𝗄𝖾𝖾𝗉 𝗍𝗁𝗂𝗇𝗀𝗌 𝗌𝖺𝖿𝖾.</blockquote></b>").format(mention=callback_query.from_user.mention)
+        start_text = settings.get("start_msg")
+        if start_text:
+            start_text = font_style(start_text)
+        else:
+            start_text = font_style("<b><blockquote>Bakka {mention}!\n\nI’m the Channel Link Bot — I create smart redirect links for your Telegram channels to help avoid copyright problems and keep things safe.</blockquote></b>")
+        start_text = start_text.format(mention=callback_query.from_user.mention)
         is_adm = await db.is_admin(client.me.id, callback_query.from_user.id, ADMINS)
         await callback_query.message.edit_caption(
             caption=start_text,
@@ -132,25 +141,23 @@ async def callback_query_handler(client: Client, callback_query):
     
     elif data == "settings":
         await callback_query.message.edit_caption(
-            caption="<b>⚙️ 𝖡𝗈𝗍 𝖲𝖾𝗍𝗍𝗂𝗇𝗀𝗌</b>\n\n𝖢𝗁𝗈𝗈𝗌𝖾 𝗐𝗁𝖺𝗍 𝗒𝗈𝗎 𝗐𝖺𝗇𝗍 𝗍𝗈 𝖼𝗈𝗇𝖿𝗂𝗀𝗎𝗋𝖾:",
+            caption=font_style("<b>⚙️ Bot Settings</b>\n\nChoose what you want to configure:"),
             reply_markup=get_settings_keyboard()
         )
 
     elif data.startswith("set_"):
-        setting_type = data.split("_")[1]
         prompts = {
-            "start": "𝖲𝖾𝗇𝖽 𝗍𝗁𝖾 𝗇𝖾𝗐 𝖲𝗍𝖺𝗋𝗍 𝖬𝖾𝗌𝗌𝖺𝗀𝖾.",
-            "help": "𝖲𝖾𝗇𝖽 𝗍𝗁𝖾 𝗇𝖾𝗐 𝖧𝖾𝗅𝗉 𝖬𝖾𝗌𝗌𝖺𝗀𝖾.",
-            "pic": "𝖲𝖾𝗇𝖽 𝗍𝗁𝖾 𝗇𝖾𝗐 𝖲𝗍𝖺𝗋𝗍 𝖨𝗆𝖺𝗀𝖾 𝖴𝖱𝖫.",
-            "btn": "𝖲𝖾𝗇𝖽 𝗍𝗁𝖾 𝗇𝖾𝗐 𝖡𝗎𝗍𝗍𝗈𝗇 𝖭𝖺𝗆𝖾." if data == "set_btn_name" else "𝖲𝖾𝗇𝖽 𝗍𝗁𝖾 𝗇𝖾𝗐 𝖡𝗎𝗍𝗍𝗈𝗇 𝖳𝖾𝗑𝗍."
+            "set_start_msg": "Send the new Start Message.",
+            "set_help_msg": "Send the new Help Message.",
+            "set_start_pic": "Send the new Start Image URL or photo.",
+            "set_btn_name": "Send the new Button Name.",
+            "set_btn_text": "Send the new Button Text (Caption)."
         }
 
-        prompt_text = prompts.get(setting_type, "𝖲𝖾𝗇𝖽 𝗍𝗁𝖾 𝗇𝖾𝗐 value.")
-        if data == "set_btn_name": prompt_text = prompts["btn"]
-        elif data == "set_btn_text": prompt_text = "𝖲𝖾𝗇𝖽 𝗍𝗁𝖾 𝗇𝖾𝗐 𝖡𝗎𝗍𝗍𝗈𝗇 𝖳𝖾𝗑𝗍 (𝖢𝖺𝗉𝗍𝗂𝗈𝗇)."
+        prompt_text = prompts.get(data, "Send the new value.")
 
         await callback_query.message.reply_text(
-            f"<b>{prompt_text}</b>\n\n𝖴𝗌𝖾 /cancel 𝗍𝗈 𝖺𝖻𝗈𝗋𝗍.",
+            font_style(f"<b>{prompt_text}</b>\n\nUse /cancel to abort."),
             reply_markup=ForceReply(selective=True)
         )
 
@@ -162,7 +169,12 @@ async def start_handler(client: Client, message: Message):
     await db.update_user(client.me.id, message.from_user.id, message.from_user.first_name)
     args = message.text.split(" ", 1)
     settings = await db.get_bot_settings(client.me.id)
-    start_text = settings.get("start_msg", "<b><blockquote>𝖡𝖺𝗄𝗄𝖺 {mention}!\n\n𝖨’𝗆 𝗍𝗁𝖾 𝖢𝗁𝖺𝗇𝗇𝖾𝗅 𝖫𝗂𝗇𝗄 𝖡𝗈𝗍 — 𝖨 𝖼𝗋𝖾𝖺𝗍𝖾 𝗌𝗆𝖺𝗋𝗍 𝗋𝖾𝖽𝗂𝗋𝖾𝖼𝗍 𝗅𝗂𝗇𝗄𝗌 𝖿𝗈𝗋 𝗒𝗈𝗎𝗋 𝖳𝖾𝗅𝖾𝗀𝗋𝖺𝗆 𝖼𝗁𝖺𝗇𝗇𝖾𝗅𝗌 𝗍𝗈 𝗁𝖾𝗅𝗉 𝖺𝗏𝗈𝗂𝖽 𝖼𝗈𝗉𝗒𝗋𝗂𝗀𝗁𝗍 𝗉𝗋𝗈𝖻𝗅𝖾𝗆𝗌 𝖺𝗇𝖽 𝗄𝖾𝖾𝗉 𝗍𝗁𝗂𝗇𝗀𝗌 𝗌𝖺𝖿𝖾.</blockquote></b>").format(mention=message.from_user.mention)
+    start_text = settings.get("start_msg")
+    if start_text:
+        start_text = font_style(start_text)
+    else:
+        start_text = font_style("<b><blockquote>Bakka {mention}!\n\nI’m the Channel Link Bot — I create smart redirect links for your Telegram channels to help avoid copyright problems and keep things safe.</blockquote></b>")
+    start_text = start_text.format(mention=message.from_user.mention)
     
     if len(args) == 1:
         # Main start message with About and Help buttons
@@ -190,11 +202,11 @@ async def start_handler(client: Client, message: Message):
     try:
         channel_id = decode_channel_id(param)
     except Exception:
-        return await message.reply("𝖨𝗇𝗏𝖺𝗅𝗂𝖽 𝗌𝗍𝖺𝗋𝗍 𝗉𝖺𝗋𝖺𝗆𝖾𝗍𝖾𝗋.")
+        return await message.reply(font_style("Invalid start parameter."))
 
     ch = await db.get_channel(client.me.id, chat_id=channel_id)
     if not ch:
-        return await message.reply("𝖳𝗁𝗂𝗌 𝖼𝗁𝖺𝗇𝗇𝖾𝗅 𝗂𝗌 𝗇𝗈𝗍 𝗋𝖾𝗀𝗂𝗌𝗍𝖾𝗋𝖾𝖽 𝗐𝗂𝗍𝗁 𝗍𝗁𝖾 𝖻𝗈𝗍.")
+        return await message.reply(font_style("This channel is not registered with the bot."))
 
     try:
         if is_req:
@@ -211,9 +223,19 @@ async def start_handler(client: Client, message: Message):
                 creates_join_request=True,
                 name=link_name
             )
-            text = settings.get("btn_text", "𝖱𝖾𝗊𝗎𝖾𝗌𝗍 𝗍𝗈 𝖩𝗈𝗂𝗇: 𝗉𝗈𝗐𝖾𝗋𝖾𝖽 𝖻𝗒 @Vecna_Bots\n<i>𝖳𝗁𝗂𝗌 𝗅𝗂𝗇𝗄 𝗋𝖾𝗊𝗎𝗂𝗋𝖾𝗌 𝖺𝖽𝗆𝗂𝗇 𝖺𝗉𝗉𝗋𝗈𝗏𝖺𝗅. 𝖮𝗇𝗅𝗒 𝗒𝗈𝗎 𝖼𝖺𝗇 𝗎𝗌𝖾 𝗂𝗍.</i>")
+            text = settings.get("btn_text")
+            if text:
+                text = font_style(text)
+            else:
+                text = font_style("Request to Join: powered by @Vecna_Bots\n<i>This link requires admin approval. Only you can use it.</i>")
+
             pic = settings.get("start_pic", LINK_PIC or START_PIC)
-            btn_name = settings.get("btn_name", "「𝖱𝖾𝗊𝗎𝖾𝗌𝗍 𝗍𝗈 𝖩𝗈𝗂𝗇」")
+
+            btn_name = settings.get("btn_name")
+            if btn_name:
+                btn_name = font_style(btn_name)
+            else:
+                btn_name = font_style("「Request to Join」")
             if pic:
                 sent = await message.reply_photo(
                     pic,
@@ -245,9 +267,19 @@ async def start_handler(client: Client, message: Message):
                 expire_date=datetime.now(timezone.utc) + timedelta(minutes=10),
                 member_limit=1
             )
-            text = settings.get("btn_text", "𝖧𝖾𝗋𝖾 𝗂𝗌 𝗒𝗈𝗎𝗋 𝗅𝗂𝗇𝗄! 𝖢𝗅𝗂𝖼𝗄 𝖻𝖾𝗅𝗈𝗐 𝗍𝗈 𝗉𝗋𝗈𝖼𝖾𝖾𝗅: 𝗉𝗈𝗐𝖾𝗋𝖾𝖽 𝖻𝗒 :- @Vecna_Bots ")
+            text = settings.get("btn_text")
+            if text:
+                text = font_style(text)
+            else:
+                text = font_style("Here is your link! Click below to proceed: powered by :- @Vecna_Bots ")
+
             pic = settings.get("start_pic", LINK_PIC or START_PIC)
-            btn_name = settings.get("btn_name", "「𝖩𝗈𝗂𝗇 𝖢𝗁𝖺𝗇𝗇𝖾𝗅」")
+
+            btn_name = settings.get("btn_name")
+            if btn_name:
+                btn_name = font_style(btn_name)
+            else:
+                btn_name = font_style("「Join Channel」")
             if pic:
                 sent = await message.reply_photo(
                     pic,
@@ -274,11 +306,11 @@ async def start_handler(client: Client, message: Message):
             except:
                 pass
     except Exception as e:
-        await message.reply(f"𝖥𝖺𝗂𝗅𝖾𝖽 𝗍𝗈 𝗀𝖾𝗇𝖾𝗋𝖺𝗍𝖾 𝗂𝗇𝗏𝗂𝗍𝖾: {e}")
+        await message.reply(font_style(f"Failed to generate invite: {e}"))
 
 async def broadcast_handler(client: Client, message: Message):
     if not message.reply_to_message:
-        return await message.reply("𝖱𝖾𝗉𝗅𝗒 𝗍𝗈 𝖺 𝗆𝖾𝗌𝗌𝖺𝗀𝖾 𝗍𝗈 𝖻𝗋𝗈𝖺𝖽𝖼𝖺𝗌𝗍 𝗂𝗍.")
+        return await message.reply(font_style("Reply to a message to broadcast it."))
 
     users = await db.get_users(client.me.id)
     success, failed = 0, 0
@@ -288,15 +320,15 @@ async def broadcast_handler(client: Client, message: Message):
             success += 1
         except:
             failed += 1
-    await message.reply(f"𝖡𝗋𝗈𝖺𝖽𝖼𝖺𝗌𝗍 𝖼𝗈𝗆𝗉𝗅𝖾𝗍𝖾𝖽.\n𝖲𝖾𝗇𝗍: {success}\n𝖥𝖺𝗂𝗅𝖾𝖽: {failed}")
+    await message.reply(font_style(f"Broadcast completed.\nSent: {success}\nFailed: {failed}"))
 
 async def users_list_handler(client: Client, message: Message):
     count = await db.get_user_count(client.me.id)
-    await message.reply(f"𝖳𝗈𝗍𝖺𝗅 𝗎𝗌𝖾𝗋𝗌: {count}")
+    await message.reply(font_style(f"Total users: {count}"))
 
 async def set_channel_handler(client: Client, message: Message):
     if len(message.command) != 2:
-        return await message.reply("𝖴𝗌𝖺𝗀𝖾: /setchannel @username 𝗈𝗋 /setchannel -1001234567890")
+        return await message.reply(font_style("Usage: /setchannel @username or /setchannel -1001234567890"))
 
     target = message.command[1]
     if target.startswith("@"):
@@ -305,31 +337,31 @@ async def set_channel_handler(client: Client, message: Message):
         try:
             chat_ref = int(target)
         except ValueError:
-            return await message.reply("𝖨𝗇𝗏𝖺𝗅𝗂𝖽 𝖼𝗁𝖺𝗇𝗇𝖾𝗅/𝗀𝗋𝗈𝗎𝗉 𝗂𝖽𝖾𝗇𝗍𝗂𝖿𝗂𝖾𝗋.")
+            return await message.reply(font_style("Invalid channel/group identifier."))
 
     try:
         chat = await client.get_chat(chat_ref)
         if chat.type not in [ChatType.CHANNEL, ChatType.SUPERGROUP, ChatType.GROUP]:
-            return await message.reply(
-                f"𝖴𝗇𝗌𝗎𝗉𝗉𝗈𝗋𝗍𝖾𝖽 𝖼𝗁𝖺𝗍 𝗍𝗒𝗉𝖾: `{chat.type}`.\n"
-                "𝖮𝗇𝗅𝗒 𝖼𝗁𝖺𝗇𝗇𝖾𝗅𝗌, 𝗀𝗋𝗈𝗎𝗉𝗌, 𝖺𝗇𝖽 𝗌𝗎𝗉𝖾𝗋𝗀𝗋𝗈𝗎𝗉𝗌 𝖺𝗋𝖾 𝗌𝗎𝗉𝗉𝗈𝗋𝗍𝖾𝖽.\n"
-                "𝖬𝖺𝗄𝖾 𝗌𝗎𝗋𝖾 𝗍𝗁𝖾 𝖻𝗈𝗍 𝗂𝗌 𝖺 𝗆𝖾𝗆𝖻𝖾𝗋/𝖺𝖽𝗆𝗂𝗇 𝗈𝖿 𝗍𝗁𝖾 𝗍𝖺𝗋𝗀𝖾𝗍."
-            )
+            return await message.reply(font_style(
+                f"Unsupported chat type: `{chat.type}`.\n"
+                "Only channels, groups, and supergroups are supported.\n"
+                "Make sure the bot is a member/admin of the target."
+            ))
         await db.update_channel(client.me.id, chat.id, chat.title, chat.username, str(chat.type))
-        await message.reply(
-            f"{chat.type.name.title()} '{chat.title}' 𝗋𝖾𝗀𝗂𝗌𝗍𝖾𝗋𝖾𝖽.\n"
-            f"𝖨𝖣: `{chat.id}`\n"
-            f"𝖴𝗌𝖾𝗋𝗇𝖺𝗆𝖾: @{chat.username if chat.username else 'N/A'}"
-        )
+        await message.reply(font_style(
+            f"{chat.type.name.title()} '{chat.title}' registered.\n"
+            f"ID: `{chat.id}`\n"
+            f"Username: @{chat.username if chat.username else 'N/A'}"
+        ))
     except Exception as e:
-        await message.reply(
-            f"𝖤𝗋𝗋𝗈𝗋: {e}\n"
-            "𝖬𝖺𝗄𝖾 𝗌𝗎𝗋𝖾 𝗍𝗁𝖾 𝖻𝗈𝗍 𝗂𝗌 𝖺 𝗆𝖾𝗆𝖻𝖾𝗋/𝖺𝖽𝗆𝗂𝗇 𝗈𝖿 𝗍𝗁𝖾 𝗍𝖺𝗋𝗀𝖾𝗍 𝖺𝗇𝖽 𝗍𝗁𝖾 𝖨𝖣/𝗎𝗌𝖾𝗋𝗇𝖺𝗆𝖾 𝗂𝗌 𝖼𝗈𝗋𝗋𝖾𝖼𝗍."
-        )
+        await message.reply(font_style(
+            f"Error: {e}\n"
+            "Make sure the bot is a member/admin of the target and the ID/username is correct."
+        ))
 
 async def delete_channel_handler(client: Client, message: Message):
     if len(message.command) != 2:
-        return await message.reply("𝖴𝗌𝖺𝗀𝖾: /delchannel @username 𝗈𝗋 /delchannel -1001234567890")
+        return await message.reply(font_style("Usage: /delchannel @username or /delchannel -1001234567890"))
 
     target = message.command[1]
     if target.startswith("@"):
@@ -338,17 +370,17 @@ async def delete_channel_handler(client: Client, message: Message):
         try:
             chat_ref = int(target)
         except ValueError:
-            return await message.reply("𝖨𝗇𝗏𝖺𝗅𝗂𝖽 𝖼𝗁𝖺𝗇𝗇𝖾𝗅/𝗀𝗋𝗈𝗎𝗉 𝗂𝖽𝖾𝗇𝗍𝗂𝖿𝗂𝖾𝗋.")
+            return await message.reply(font_style("Invalid channel/group identifier."))
 
     try:
         chat = await client.get_chat(chat_ref)
         result = await db.delete_channel(client.me.id, chat.id)
         if result.deleted_count:
-            await message.reply(f"{chat.type.name.title()} '{chat.title}' 𝗋𝖾𝗆𝗈𝗏𝖾𝖽.")
+            await message.reply(font_style(f"{chat.type.name.title()} '{chat.title}' removed."))
         else:
-            await message.reply("𝖢𝗁𝖺𝗇𝗇𝖾𝗅/𝗀𝗋𝗈𝗎𝗉 𝗇𝗈𝗍 𝖿𝗈𝗎𝗇𝖽.")
+            await message.reply(font_style("Channel/group not found."))
     except Exception as e:
-        await message.reply(f"Error: {e}")
+        await message.reply(font_style(f"Error: {e}"))
 
 async def channel_post_handler(client: Client, message: Message):
     args = message.text.split(maxsplit=1)
@@ -361,19 +393,20 @@ async def channel_post_handler(client: Client, message: Message):
             try:
                 ch = await db.get_channel(client.me.id, chat_id=int(target))
             except Exception:
-                return await message.reply("𝖨𝗇𝗏𝖺𝗅𝗂𝖽 𝖼𝗁𝖺𝗇𝗇𝖾𝗅/𝗀𝗋𝗈𝗎𝗉 𝗂𝖽𝖾𝗇𝗍𝗂𝖿𝗂𝖾𝗋.")
+                return await message.reply(font_style("Invalid channel/group identifier."))
         if not ch:
-            return await message.reply("𝖢𝗁𝖺𝗇𝗇𝖾𝗅/𝗀𝗋𝗈𝗎𝗉 𝗇𝗈𝗍 𝖿𝗈𝗎𝗇𝖽.")
+            return await message.reply(font_style("Channel/group not found."))
         try:
             encoded = encode_channel_id(ch['chat_id'])
             link = f"https://t.me/{client.me.username}?start={encoded}"
-            await message.reply(
-                f"𝖳𝖾𝗆𝗉𝗈𝗋𝖺𝗋𝗒 𝗃𝗈𝗂𝗇 𝗅𝗂𝗇𝗄 𝖿𝗈𝗋 <b>{ch.get('title', ch.get('username', ch['chat_id']))}</b>:\n"
-                f"<a href='{link}'>𝖢𝗅𝗂𝖼𝗄 𝗁𝖾𝗋𝖾</a>",
+            await message.reply(font_style(
+                f"Temporary join link for <b>{ch.get('title', ch.get('username', ch['chat_id']))}</b>:\n"
+                f"<a href='{link}'>Click here</a>"
+            ),
                 disable_web_page_preview=True
             )
         except Exception as e:
-            await message.reply(f"❌ {ch.get('username', ch.get('title', ch['chat_id']))}: {e}")
+            await message.reply(font_style(f"❌ {ch.get('username', ch.get('title', ch['chat_id']))}: {e}"))
         return
 
     registered = await db.get_all_channels(client.me.id)
@@ -382,12 +415,12 @@ async def channel_post_handler(client: Client, message: Message):
         try:
             encoded = encode_channel_id(ch['chat_id'])
             link = f"https://t.me/{client.me.username}?start={encoded}"
-            links.append(f"<b>{ch.get('title', ch.get('username', ch['chat_id']))}</b>: <a href='{link}'>𝖢𝗅𝗂𝖼𝗄 𝗁𝖾𝗋𝖾</a>")
+            links.append(font_style(f"<b>{ch.get('title', ch.get('username', ch['chat_id']))}</b>: <a href='{link}'>Click here</a>"))
         except Exception as e:
-            links.append(f"❌ {ch.get('username', ch.get('title', ch['chat_id']))}: {e}")
+            links.append(font_style(f"❌ {ch.get('username', ch.get('title', ch['chat_id']))}: {e}"))
 
     if not links:
-        return await message.reply("𝖭𝗈 𝖼𝗁𝖺𝗇𝗇𝖾𝗅𝗌 𝗋𝖾𝗀𝗂𝗌𝗍𝖾𝗋𝖾𝖽.")
+        return await message.reply(font_style("No channels registered."))
     await message.reply("\n".join(links), disable_web_page_preview=True)
 
 async def req_post_handler(client: Client, message: Message):
@@ -401,20 +434,21 @@ async def req_post_handler(client: Client, message: Message):
             try:
                 ch = await db.get_channel(client.me.id, chat_id=int(target))
             except Exception:
-                return await message.reply("𝖨𝗇𝗏𝖺𝗅𝗂𝖽 𝖼𝗁𝖺𝗇𝗇𝖾𝗅/𝗀𝗋𝗈𝗎𝗉 𝗂𝖽𝖾𝗇𝗍𝗂𝖿𝗂𝖾𝗋.")
+                return await message.reply(font_style("Invalid channel/group identifier."))
         if not ch:
-            return await message.reply("𝖢𝗁𝖺𝗇𝗇𝖾𝗅/𝗀𝗋𝗈𝗎𝗉 𝗇𝗈𝗍 𝖿𝗈𝗎𝗇𝖽.")
+            return await message.reply(font_style("Channel/group not found."))
         try:
             encoded = encode_channel_id(ch['chat_id'])
             link = f"https://t.me/{client.me.username}?start=req_{encoded}"
-            await message.reply(
-                f"𝖱𝖾𝗊𝗎𝖾𝗌𝗍 𝗃𝗈𝗂𝗇 𝗅𝗂𝗇𝗄 𝖿𝗈𝗋 <b>{ch.get('title', ch.get('username', ch['chat_id']))}</b> (𝗋𝖾𝗊𝗎𝗂𝗋𝖾𝗌 𝖺𝖽𝗆𝗂𝗇 𝖺𝗉𝗉𝗋𝗈𝗏𝖺𝗅):\n"
-                f"<a href='{link}'>𝖱𝖾𝗊𝗎𝖾𝗌𝗍 𝗍𝗈 𝖩𝗈𝗂𝗇</a>\n\n"
-                f"<i>𝖬𝖺𝗄𝖾 𝗌𝗎𝗋𝖾 '𝖠𝗉𝗉𝗋𝗈𝗏𝖾 𝗇𝖾𝗐 𝗆𝖾𝗆𝖻𝖾𝗋𝗌' 𝗂𝗌 𝖾𝗇𝖺𝖻𝗅𝖾𝖽 𝗂𝗇 𝗍𝗁𝖾 𝖼𝗁𝖺𝗇𝗇𝖾𝗅/𝗀𝗋𝗈𝗎𝗉 𝗌𝖾𝗍𝗍𝗂𝗇𝗀𝗌 𝖿𝗈𝗋 𝗃𝗈𝗂𝗇 𝗋𝖾𝗊𝗎𝖾𝗌𝗍𝗌 𝗍𝗈 𝗐𝗈𝗋𝗄.</i>",
+            await message.reply(font_style(
+                f"Request join link for <b>{ch.get('title', ch.get('username', ch['chat_id']))}</b> (requires admin approval):\n"
+                f"<a href='{link}'>Request to Join</a>\n\n"
+                f"<i>Make sure 'Approve new members' is enabled in the channel/group settings for join requests to work.</i>"
+            ),
                 disable_web_page_preview=True
             )
         except Exception as e:
-            await message.reply(f"❌ {ch.get('username', ch.get('title', ch['chat_id']))}: {e}")
+            await message.reply(font_style(f"❌ {ch.get('username', ch.get('title', ch['chat_id']))}: {e}"))
         return
 
     registered = await db.get_all_channels(client.me.id)
@@ -423,30 +457,30 @@ async def req_post_handler(client: Client, message: Message):
         try:
             encoded = encode_channel_id(ch['chat_id'])
             link = f"https://t.me/{client.me.username}?start=req_{encoded}"
-            links.append(
-                f"<b>{ch.get('title', ch.get('username', ch['chat_id']))}</b>: <a href='{link}'>𝖱𝖾𝗊𝗎𝖾𝗌𝗍 𝗍𝗈 𝖩𝗈𝗂𝗇</a> (𝗋𝖾𝗊𝗎𝗂𝗋𝖾𝗌 𝖺𝖽𝗆𝗂𝗇 𝖺𝗉𝗉𝗋𝗈𝗏𝖺𝗅)"
-            )
+            links.append(font_style(
+                f"<b>{ch.get('title', ch.get('username', ch['chat_id']))}</b>: <a href='{link}'>Request to Join</a> (requires admin approval)"
+            ))
         except Exception as e:
-            links.append(f"❌ {ch.get('username', ch.get('title', ch['chat_id']))}: {e}")
+            links.append(font_style(f"❌ {ch.get('username', ch.get('title', ch['chat_id']))}: {e}"))
 
     if not links:
-        return await message.reply("𝖭𝗈 𝖼𝗁𝖺𝗇𝗇𝖾𝗅𝗌 𝗋𝖾𝗀𝗂𝗌𝗍𝖾𝗋𝖾𝖽.")
-    await message.reply("\n".join(links) + "\n\n<i>𝖬𝖺𝗄𝖾 𝗌𝗎𝗋𝖾 '𝖠𝗉𝗉𝗋𝗈𝗏𝖾 𝗇𝖾𝗐 𝗆𝖾𝗆𝖻𝖾𝗋𝗌' 𝗂𝗌 𝖾𝗇𝖺𝖻𝗅𝖾𝖽 𝗂𝗇 𝗍𝗁𝖾 𝖼𝗁𝖺𝗇𝗇𝖾𝗅/𝗀𝗋𝗈𝗎𝗉 𝗌𝖾𝗍𝗍𝗂𝗇𝗀𝗌 𝖿𝗈𝗋 𝗃𝗈𝗂𝗇 𝗋𝖾𝗊𝗎𝖾𝗌𝗍𝗌 𝗍𝗈 𝗐𝗈𝗋𝗄.</i>", disable_web_page_preview=True)
+        return await message.reply(font_style("No channels registered."))
+    await message.reply("\n".join(links) + font_style("\n\n<i>Make sure 'Approve new members' is enabled in the channel/group settings for join requests to work.</i>"), disable_web_page_preview=True)
 
 async def stats_handler(client: Client, message: Message):
     user_count = await db.get_user_count(client.me.id)
     channel_count = await db.get_channel_count(client.me.id)
-    await message.reply(f"𝖴𝗌𝖾𝗋𝗌: {user_count}\n𝖢𝗁𝖺𝗇𝗇𝖾𝗅𝗌: {channel_count}")
+    await message.reply(font_style(f"Users: {user_count}\nChannels: {channel_count}"))
 
 async def bots_handler(client: Client, message: Message):
     bots = await db.get_all_bots()
     if not bots:
-        return await message.reply("𝖭𝗈 𝖻𝗈𝗍𝗌 𝖼𝗅𝗈𝗇𝖾𝖽 𝗒𝖾𝗍.")
+        return await message.reply(font_style("No bots cloned yet."))
     
-    text = "<b>𝖢𝗅𝗈𝗇𝖾𝖽 𝖡𝗈𝗍𝗌:</b>\n\n"
+    text = font_style("<b>Cloned Bots:</b>\n\n")
     for i, bot in enumerate(bots, 1):
         username = bot.get('username', 'Unknown')
-        text += f"{i}. @{username}\n"
+        text += font_style(f"{i}. @{username}\n")
     
     await message.reply(text)
 
@@ -454,11 +488,11 @@ async def bots_handler(client: Client, message: Message):
 
 async def clone_handler(client: Client, message: Message):
     if len(message.command) != 2:
-        return await message.reply("𝖴𝗌𝖺𝗀𝖾: /clone BOT_TOKEN")
+        return await message.reply(font_style("Usage: /clone BOT_TOKEN"))
 
     bot_count = await db.get_bot_count()
     if bot_count >= 100:
-        return await message.reply("❌ 𝖢𝗅𝗈𝗇𝗂𝗇𝗀 𝗅𝗂𝗆𝗂𝗍 𝗋𝖾𝖺𝖼𝗁𝖾𝖽 (100 𝖻𝗈𝗍𝗌).")
+        return await message.reply(font_style("❌ Cloning limit reached (100 bots)."))
 
     token = message.command[1]
     try:
@@ -481,11 +515,11 @@ async def clone_handler(client: Client, message: Message):
         await new_client.start()
         running_clients.append(new_client)
 
-        await message.reply(f"✅ 𝖡𝗈𝗍 @{bot_info.username} 𝗌𝗎𝖼𝖼𝖾𝗌𝗌𝖿𝗎𝗅𝗅𝗒 𝖼𝗅𝗈𝗇𝖾𝖽 𝖺𝗇𝖽 𝗌𝗍𝖺𝗋𝗍𝖾𝖽!")
+        await message.reply(font_style(f"✅ Bot @{bot_info.username} successfully cloned and started!"))
     except TokenInvalid:
-        await message.reply("❌ 𝖨𝗇𝗏𝖺𝗅𝗂𝖽 𝖻𝗈𝗍 𝗍𝗈𝗄𝖾𝗇.")
+        await message.reply(font_style("❌ Invalid bot token."))
     except Exception as e:
-        await message.reply(f"❌ 𝖤𝗋𝗋𝗈𝗋 𝖽𝗎𝗋𝗂𝗇𝗀 𝖼𝗅𝗈𝗇𝗂𝗇𝗀: {e}")
+        await message.reply(font_style(f"❌ Error during cloning: {e}"))
 
 async def add_admin_handler(client: Client, message: Message):
     if message.reply_to_message:
@@ -494,12 +528,12 @@ async def add_admin_handler(client: Client, message: Message):
         try:
             admin_id = int(message.command[1])
         except ValueError:
-            return await message.reply("❌ 𝖴𝗌𝖾𝗋 𝖨𝖣 𝗆𝗎𝗌𝗍 𝖻𝖾 𝖺𝗇 𝗂𝗇𝗍𝖾𝗀𝖾𝗋.")
+            return await message.reply(font_style("❌ User ID must be an integer."))
     else:
-        return await message.reply("𝖴𝗌𝖺𝗀𝖾: /addadmin USER_ID 𝗈𝗋 𝗋𝖾𝗉𝗅𝗒 𝗍𝗈 𝖺 𝗆𝖾𝗌𝗌𝖺𝗀𝖾.")
+        return await message.reply(font_style("Usage: /addadmin USER_ID or reply to a message."))
 
     await db.add_admin(client.me.id, admin_id)
-    await message.reply(f"✅ 𝖴𝗌𝖾𝗋 {admin_id} 𝖺𝖽𝖽𝖾𝖽 𝖺𝗌 𝖺𝖽𝗆𝗂𝗇 𝖿𝗈𝗋 𝗍𝗁𝗂𝗌 𝖻𝗈𝗍.")
+    await message.reply(font_style(f"✅ User {admin_id} added as admin for this bot."))
 
 async def rem_admin_handler(client: Client, message: Message):
     if message.reply_to_message:
@@ -508,23 +542,25 @@ async def rem_admin_handler(client: Client, message: Message):
         try:
             admin_id = int(message.command[1])
         except ValueError:
-            return await message.reply("❌ 𝖴𝗌𝖾𝗋 𝖨𝖣 𝗆𝗎𝗌𝗍 𝖻𝖾 𝖺𝗇 𝗂𝗇𝗍𝖾𝗀𝖾𝗋.")
+            return await message.reply(font_style("❌ User ID must be an integer."))
     else:
-        return await message.reply("𝖴𝗌𝖺𝗀𝖾: /remadmin USER_ID 𝗈𝗋 𝗋𝖾𝗉𝗅𝗒 𝗍𝗈 𝖺 𝗆𝖾𝗌𝗌𝖺𝗀𝖾.")
+        return await message.reply(font_style("Usage: /remadmin USER_ID or reply to a message."))
 
     await db.remove_admin(client.me.id, admin_id)
-    await message.reply(f"✅ 𝖴𝗌𝖾𝗋 {admin_id} 𝗋𝖾𝗆𝗈𝗏𝖾𝖽 𝖿𝗋𝗈𝗆 𝖺𝖽𝗆𝗂𝗇𝗌 𝖿𝗈𝗋 𝗍𝗁𝗂𝗌 𝖻𝗈𝗍.")
+    await message.reply(font_style(f"✅ User {admin_id} removed from admins for this bot."))
 
 async def settings_handler(client: Client, message: Message):
-    if START_PIC:
+    settings = await db.get_bot_settings(client.me.id)
+    pic = settings.get("start_pic", START_PIC)
+    if pic:
         await message.reply_photo(
-            START_PIC,
-            caption="<b>⚙️ 𝖡𝗈𝗍 𝖲𝖾𝗍𝗍𝗂𝗇𝗀𝗌</b>\n\n𝖢𝗁𝗈𝗈𝗌𝖾 𝗐𝗁𝖺𝗍 𝗒𝗈𝗎 𝗐𝖺𝗇𝗍 𝗍𝗈 𝖼𝗈𝗇𝖿𝗂𝗀𝗎𝗋𝖾:",
+            pic,
+            caption=font_style("<b>⚙️ Bot Settings</b>\n\nChoose what you want to configure:"),
             reply_markup=get_settings_keyboard()
         )
     else:
         await message.reply(
-            "<b>⚙️ 𝖡𝗈𝗍 𝖲𝖾𝗍𝗍𝗂𝗇𝗀𝗌</b>\n\n𝖢𝗁𝗈𝗈𝗌𝖾 𝗐𝗁𝖺𝗍 𝗒𝗈𝗎 𝗐𝖺𝗇𝗍 𝗍𝗈 𝖼𝗈𝗇𝖿𝗂𝗀𝗎𝗋𝖾:",
+            font_style("<b>⚙️ Bot Settings</b>\n\nChoose what you want to configure:"),
             reply_markup=get_settings_keyboard()
         )
 
@@ -533,35 +569,42 @@ async def settings_input_handler(client: Client, message: Message):
         return
 
     if message.text == "/cancel":
-        return await message.reply("❌ 𝖮𝗉𝖾𝗋𝖺𝗍𝗂𝗈𝗇 𝖼𝖺𝗇𝖼𝖾𝗅𝗅𝖾𝖽.")
+        return await message.reply(font_style("❌ Operation cancelled."))
 
     prompt = message.reply_to_message.text
     key = None
-    if "𝖲𝗍𝖺𝗋𝗍 𝖬𝖾𝗌𝗌𝖺𝗀𝖾" in prompt: key = "start_msg"
-    elif "𝖧𝖾𝗅𝗉 𝖬𝖾𝗌𝗌𝖺𝗀𝖾" in prompt: key = "help_msg"
-    elif "𝖲𝗍𝖺𝗋𝗍 𝖨𝗆𝖺𝗀𝖾 𝖴𝖱𝖫" in prompt: key = "start_pic"
-    elif "𝖡𝗎𝗍𝗍𝗈𝗇 𝖭𝖺𝗆𝖾" in prompt: key = "btn_name"
-    elif "𝖡𝗎𝗍𝗍𝗈𝗇 𝖳𝖾𝗑𝗍" in prompt: key = "btn_text"
+    if font_style("Start Message") in prompt: key = "start_msg"
+    elif font_style("Help Message") in prompt: key = "help_msg"
+    elif font_style("Start Image URL") in prompt: key = "start_pic"
+    elif font_style("Button Name") in prompt: key = "btn_name"
+    elif font_style("Button Text") in prompt: key = "btn_text"
 
     if key:
-        await db.update_bot_setting(client.me.id, key, message.text)
-        await message.reply(f"✅ 𝖲𝗎𝖼𝖼𝖾𝗌𝗌𝖿𝗎𝗅𝗅𝗒 𝗎𝗉𝖽𝖺𝗍𝖾𝖽 {key.replace('_', ' ').title()}!")
+        value = message.text
+        if key == "start_pic" and message.photo:
+            value = message.photo.file_id
+
+        if value is None and not (key == "start_pic" and message.photo):
+            return await message.reply(font_style("❌ Please send a valid text message."))
+
+        await db.update_bot_setting(client.me.id, key, value)
+        await message.reply(font_style(f"✅ Successfully updated {key.replace('_', ' ').title()}!"))
 
 async def admin_list_handler(client: Client, message: Message):
     bot = await db.get_bot(client.me.id)
     if not bot:
-        return await message.reply("❌ 𝖡𝗈𝗍 𝗇𝗈𝗍 𝖿𝗈𝗎𝗇𝖽 𝗂𝗇 𝖽𝖺𝗍𝖺𝖻𝖺𝗌𝖾.")
+        return await message.reply(font_style("❌ Bot not found in database."))
 
     owner_id = bot.get('owner_id')
     admins = bot.get('admins', [])
 
-    text = f"<b>👑 𝖮𝗐𝗇𝖾𝗋:</b> `{owner_id}`\n\n"
+    text = font_style(f"<b>👑 Owner:</b> `{owner_id}`\n\n")
     if admins:
-        text += "<b>👤 𝖠𝖽𝗆𝗂𝗇𝗌:</b>\n"
+        text += font_style("<b>👤 Admins:</b>\n")
         for admin_id in admins:
             text += f"• `{admin_id}`\n"
     else:
-        text += "<i>𝖭𝗈 𝖺𝖽𝗆𝗂𝗇𝗌 𝖺𝖽𝖽𝖾𝖽 𝗍𝗈 𝗍𝗁𝗂𝗌 𝖻𝗈𝗍.</i>"
+        text += font_style("<i>No admins added to this bot.</i>")
 
     await message.reply(text)
 
