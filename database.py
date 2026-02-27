@@ -18,8 +18,20 @@ class Database:
         expiry = datetime.now(timezone.utc) + timedelta(days=7)
         await self.bots.update_one(
             {"_id": bot_id},
-            {"$set": {"token": token, "owner_id": owner_id, "username": username, "expiry": expiry}},
+            {"$set": {
+                "token": token,
+                "owner_id": owner_id,
+                "username": username,
+                "expiry": expiry,
+                "is_deactivated": False
+            }},
             upsert=True
+        )
+
+    async def update_bot_status(self, bot_id, is_deactivated):
+        await self.bots.update_one(
+            {"_id": bot_id},
+            {"$set": {"is_deactivated": is_deactivated}}
         )
 
     async def get_bot(self, bot_id):
