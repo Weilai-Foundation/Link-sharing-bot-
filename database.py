@@ -8,6 +8,7 @@ class Database:
         self.bots = self.db['bots']
         self.users = self.db['users']
         self.channels = self.db['channels']
+        self._settings_cache = {}
 
     # Bot management
     async def add_bot(self, bot_id, token, owner_id, username):
@@ -27,9 +28,14 @@ class Database:
         return await self.bots.count_documents({})
 
     async def get_bot_settings(self, bot_id):
+        if bot_id in self._settings_cache:
+            return self._settings_cache[bot_id]
+
         bot = await self.get_bot(bot_id)
         if bot:
-            return bot.get('settings', {})
+            settings = bot.get('settings', {})
+            self._settings_cache[bot_id] = settings
+            return settings
         return {}
 
     async def update_bot_setting(self, bot_id, key, value):
@@ -37,12 +43,16 @@ class Database:
             {"_id": bot_id},
             {"$set": {f"settings.{key}": value}}
         )
+        if bot_id in self._settings_cache:
+            self._settings_cache[bot_id][key] = value
 
     async def unset_bot_setting(self, bot_id, key):
         await self.bots.update_one(
             {"_id": bot_id},
             {"$unset": {f"settings.{key}": ""}}
         )
+        if bot_id in self._settings_cache:
+            self._settings_cache[bot_id].pop(key, None)
 
     async def add_admin(self, bot_id, admin_id):
         await self.bots.update_one(

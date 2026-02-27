@@ -9,6 +9,7 @@ from datetime import datetime, timedelta, timezone
 from config import API_ID, API_HASH, BOT_TOKEN, ADMINS, START_PIC, LINK_PIC
 from database import db
 from utils import encode_channel_id, decode_channel_id, font_style
+from broadcast_handler import broadcast_handler
 
 BOT_COMMANDS = [
     BotCommand("start", font_style("𝖲𝗍𝖺𝗋𝗍 𝗍𝗁𝖾 𝖻𝗈𝗍")),
@@ -302,6 +303,7 @@ async def start_handler(client: Client, message: Message):
         return await message.reply(font_style("This channel is not registered with the bot."))
 
     try:
+        expire_time = settings.get("expire_time", 10)
         if is_req:
             link_name = f"req_{channel_id}_{message.from_user.id}"
             try:
@@ -347,19 +349,8 @@ async def start_handler(client: Client, message: Message):
                     ),
                     disable_web_page_preview=True
                 )
-
-            expire_time = settings.get("expire_time", 10)
-            await asyncio.sleep(expire_time * 60)
-            try:
-                await client.revoke_chat_invite_link(channel_id, invite.invite_link)
-            except:
-                pass
-            try:
-                await sent.delete()
-            except:
-                pass
+            asyncio.create_task(revoke_and_delete(client, channel_id, invite.invite_link, sent, expire_time))
         else:
-            expire_time = settings.get("expire_time", 10)
             invite = await client.create_chat_invite_link(
                 chat_id=channel_id,
                 expire_date=datetime.now(timezone.utc) + timedelta(minutes=expire_time),
@@ -396,17 +387,20 @@ async def start_handler(client: Client, message: Message):
                     ),
                     disable_web_page_preview=True
                 )
-            await asyncio.sleep(expire_time * 60)
-            try:
-                await client.revoke_chat_invite_link(channel_id, invite.invite_link)
-            except:
-                pass
-            try:
-                await sent.delete()
-            except:
-                pass
+            asyncio.create_task(revoke_and_delete(client, channel_id, invite.invite_link, sent, expire_time))
     except Exception as e:
         await message.reply(font_style(f"Failed to generate invite: {e}"))
+
+async def revoke_and_delete(client, channel_id, invite_link, message, expire_time):
+    await asyncio.sleep(expire_time * 60)
+    try:
+        await client.revoke_chat_invite_link(channel_id, invite_link)
+    except:
+        pass
+    try:
+        await message.delete()
+    except:
+        pass
 
 async def join_request_handler(client: Client, chat_join_request: ChatJoinRequest):
     settings = await db.get_bot_settings(client.me.id)
@@ -415,46 +409,6 @@ async def join_request_handler(client: Client, chat_join_request: ChatJoinReques
             await client.approve_chat_join_request(chat_join_request.chat.id, chat_join_request.from_user.id)
         except Exception as e:
             print(f"Error approving join request: {e}")
-
-async def broadcast_handler(client: Client, message: Message):
-    if not message.reply_to_message:
-        return await message.reply(font_style("Reply to a message to broadcast it."))
-
-    msg = await message.reply(font_style("Broadcasting..."))
-    users = await db.get_users(client.me.id)
-    total = await db.get_user_count(client.me.id)
-    success, failed = 0, 0
-
-    async for user in users:
-        user_id = user['user_id']
-        tries = 0
-        done = False
-        while tries < 3 and not done:
-            try:
-                await client.copy_message(user_id, message.chat.id, message.reply_to_message.id)
-                success += 1
-                done = True
-            except FloodWait as e:
-                await asyncio.sleep(e.value)
-                tries += 1
-            except (UserIsBlocked, InputUserDeactivated, PeerIdInvalid):
-                await db.delete_user(client.me.id, user_id)
-                failed += 1
-                done = True
-            except Exception:
-                failed += 1
-                done = True
-
-        if not done: # Reached max retries for FloodWait
-            failed += 1
-
-        if (success + failed) % 20 == 0:
-            try:
-                await msg.edit(font_style(f"Broadcasting...\n\nSent: {success} / {total}\nFailed: {failed}"))
-            except Exception:
-                pass
-
-    await msg.edit(font_style(f"<b>Broadcast completed.</b>\n\nTotal: {total}\nSent: {success}\nFailed: {failed}"))
 
 async def users_list_handler(client: Client, message: Message):
     count = await db.get_user_count(client.me.id)
@@ -790,40 +744,42 @@ def register_all_handlers(client: Client):
     client.add_handler(MessageHandler(stats_handler, filters.command("stats") & filters.private & is_admin))
     client.add_handler(MessageHandler(bots_handler, filters.command(["bots", "bot"]) & filters.private & is_main_owner))
 
+async def start_bot(name, bot_token, owner_id=None, username=None, is_master=False):
+    try:
+        client = Client(
+            name=name,
+            api_id=API_ID,
+            api_hash=API_HASH,
+            bot_token=bot_token
+        )
+        register_all_handlers(client)
+        await client.start()
+        await set_commands(client)
+        running_clients.append(client)
+
+        if is_master:
+            await db.add_bot(client.me.id, bot_token, ADMINS[0], client.me.username)
+
+        print(f"{'Master' if is_master else 'Cloned'} Bot @{client.me.username} started.")
+        return client
+    except Exception as e:
+        print(f"Failed to start bot {name}: {e}")
+        return None
+
 async def main():
     # Start Master Bot
-    master_bot = Client(
-        "master_bot",
-        api_id=API_ID,
-        api_hash=API_HASH,
-        bot_token=BOT_TOKEN
-    )
-    register_all_handlers(master_bot)
-    await master_bot.start()
-    await set_commands(master_bot)
-    running_clients.append(master_bot)
-    await db.add_bot(master_bot.me.id, BOT_TOKEN, ADMINS[0], master_bot.me.username)
-    print(f"Master Bot @{master_bot.me.username} started.")
+    master_bot = await start_bot("master_bot", BOT_TOKEN, is_master=True)
 
     # Start Cloned Bots
     bots = await db.get_all_bots()
+    tasks = []
     for bot in bots:
         if bot['token'] == BOT_TOKEN:
             continue
-        try:
-            client = Client(
-                name=f"bot_{bot['_id']}",
-                api_id=API_ID,
-                api_hash=API_HASH,
-                bot_token=bot['token']
-            )
-            register_all_handlers(client)
-            await client.start()
-            await set_commands(client)
-            running_clients.append(client)
-            print(f"Cloned Bot @{client.me.username} started.")
-        except Exception as e:
-            print(f"Failed to start bot {bot['_id']}: {e}")
+        tasks.append(start_bot(f"bot_{bot['_id']}", bot['token']))
+
+    if tasks:
+        await asyncio.gather(*tasks)
 
     await idle()
 
