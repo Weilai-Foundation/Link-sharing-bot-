@@ -85,6 +85,12 @@ def get_remove_pic_keyboard():
         [InlineKeyboardButton(font_style("🔙 Back"), callback_data="settings")]
     ])
 
+async def edit_message(message: Message, text: str, reply_markup: InlineKeyboardMarkup = None):
+    """Helper function to edit message whether it has media or not"""
+    if message.photo or message.animation or message.video or message.document:
+        return await message.edit_caption(caption=text, reply_markup=reply_markup)
+    return await message.edit_text(text=text, reply_markup=reply_markup)
+
 # --- Callback Query Handler ---
 
 async def callback_query_handler(client: Client, callback_query):
@@ -110,8 +116,9 @@ async def callback_query_handler(client: Client, callback_query):
                 "<b>Developer:</b> @Vecna_Bots\n"
                 "<b>Powered by:</b> @Vecna_Bots"
             )
-        await callback_query.message.edit_caption(
-            caption=about_text,
+        await edit_message(
+            callback_query.message,
+            text=about_text,
             reply_markup=get_back_button_keyboard()
         )
     
@@ -147,8 +154,9 @@ async def callback_query_handler(client: Client, callback_query):
                 "3. Generate links using /channelpost or /reqpost\n"
                 "4. Share the generated links with users"
             )
-        await callback_query.message.edit_caption(
-            caption=help_text,
+        await edit_message(
+            callback_query.message,
+            text=help_text,
             reply_markup=get_back_button_keyboard()
         )
     
@@ -160,29 +168,33 @@ async def callback_query_handler(client: Client, callback_query):
             start_text = font_style("<b><blockquote>Bakka {mention}!\n\nI’m the Channel Link Bot — I create smart redirect links for your Telegram channels to help avoid copyright problems and keep things safe.</blockquote></b>")
         start_text = start_text.format(mention=callback_query.from_user.mention)
         is_adm = await db.is_admin(client.me.id, callback_query.from_user.id, ADMINS)
-        await callback_query.message.edit_caption(
-            caption=start_text,
+        await edit_message(
+            callback_query.message,
+            text=start_text,
             reply_markup=get_start_keyboard(is_admin=is_adm, settings=settings)
         )
     
     elif data == "settings":
-        await callback_query.message.edit_caption(
-            caption=font_style("<b>⚙️ Bot Settings</b>\n\nChoose what you want to configure:"),
+        await edit_message(
+            callback_query.message,
+            text=font_style("<b>⚙️ Bot Settings</b>\n\nChoose what you want to configure:"),
             reply_markup=get_settings_keyboard()
         )
 
     elif data == "remove_pic":
-        await callback_query.message.edit_caption(
-            caption=font_style("<b>🗑️ Remove Picture</b>\n\nChoose which picture you want to remove:"),
+        await edit_message(
+            callback_query.message,
+            text=font_style("<b>🗑️ Remove Picture</b>\n\nChoose which picture you want to remove:"),
             reply_markup=get_remove_pic_keyboard()
         )
 
     elif data.startswith("del_"):
         key = "start_pic" if "start_pic" in data else "link_pic"
-        await db.unset_bot_setting(client.me.id, key)
+        await db.update_bot_setting(client.me.id, key, "none")
         await callback_query.answer(font_style(f"✅ Successfully removed {key.replace('_', ' ').title()}!"), show_alert=True)
-        await callback_query.message.edit_caption(
-            caption=font_style("<b>⚙️ Bot Settings</b>\n\nChoose what you want to configure:"),
+        await edit_message(
+            callback_query.message,
+            text=font_style("<b>⚙️ Bot Settings</b>\n\nChoose what you want to configure:"),
             reply_markup=get_settings_keyboard()
         )
 
@@ -226,6 +238,8 @@ async def start_handler(client: Client, message: Message):
         # Main start message with About and Help buttons
         is_adm = await db.is_admin(client.me.id, message.from_user.id, ADMINS)
         pic = settings.get("start_pic", START_PIC)
+        if pic == "none":
+            pic = None
         if pic:
             return await message.reply_photo(
                 pic,
@@ -276,6 +290,8 @@ async def start_handler(client: Client, message: Message):
                 text = font_style("Request to Join: powered by @Vecna_Bots\n<i>This link requires admin approval. Only you can use it.</i>")
 
             pic = settings.get("link_pic", settings.get("start_pic", LINK_PIC or START_PIC))
+            if pic == "none":
+                pic = None
 
             btn_name = settings.get("btn_name")
             if btn_name:
@@ -323,6 +339,8 @@ async def start_handler(client: Client, message: Message):
                 text = font_style("Here is your link! Click below to proceed: powered by :- @Vecna_Bots ")
 
             pic = settings.get("link_pic", settings.get("start_pic", LINK_PIC or START_PIC))
+            if pic == "none":
+                pic = None
 
             btn_name = settings.get("btn_name")
             if btn_name:
@@ -614,6 +632,8 @@ async def rem_admin_handler(client: Client, message: Message):
 async def settings_handler(client: Client, message: Message):
     settings = await db.get_bot_settings(client.me.id)
     pic = settings.get("start_pic", START_PIC)
+    if pic == "none":
+        pic = None
     if pic:
         await message.reply_photo(
             pic,
