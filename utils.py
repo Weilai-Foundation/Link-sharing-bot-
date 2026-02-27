@@ -1,5 +1,20 @@
 import base64
 import re
+import aiohttp
+
+async def get_shortlink(url, api_url, api_key):
+    if not api_url or not api_key:
+        return url
+    try:
+        async with aiohttp.ClientSession() as session:
+            params = {'api': api_key, 'url': url}
+            async with session.get(api_url, params=params, timeout=10) as response:
+                data = await response.json()
+                if data.get('status') == 'success' or data.get('shortenedUrl'):
+                    return data.get('shortenedUrl') or data.get('link')
+    except Exception as e:
+        print(f"Shortener Error: {e}")
+    return url
 
 def encode_channel_id(channel_id: int) -> str:
     return base64.urlsafe_b64encode(str(channel_id).encode()).decode()

@@ -8,7 +8,7 @@ from datetime import datetime, timedelta, timezone
 
 from config import API_ID, API_HASH, BOT_TOKEN, ADMINS, START_PIC, LINK_PIC
 from database import db
-from utils import encode_channel_id, decode_channel_id, font_style
+from utils import encode_channel_id, decode_channel_id, font_style, get_shortlink
 from broadcast_handler import broadcast_handler
 
 BOT_COMMANDS = [
@@ -21,6 +21,7 @@ BOT_COMMANDS = [
     BotCommand("users", font_style("𝖦𝖾𝗍 𝗍𝗈𝗍𝖺𝗅 𝗎𝗌𝖾𝗋 𝖼𝗈𝗎𝗇𝗍")),
     BotCommand("stats", font_style("𝖦𝖾𝗍 𝖻𝗈𝗍 𝗌𝗍𝖺𝗍𝗂𝗌𝗍𝗂𝖼𝗌")),
     BotCommand("clone", font_style("𝖢𝗅𝗈𝗇𝖾 𝖺 𝗇𝖾𝗐 𝖻𝗈𝗍")),
+    BotCommand("mybots", font_style("𝖫𝗂𝗌𝗍 𝗒𝗈𝗎𝗋 𝖼𝗅𝗈𝗇𝖾𝖽 𝖻𝗈𝗍𝗌")),
     BotCommand("addadmin", font_style("𝖠𝖽𝖽 𝖺𝖽𝗆𝗂𝗇 𝗍𝗈 𝗍𝗁𝗂𝗌 𝖻𝗈𝗍")),
     BotCommand("remadmin", font_style("𝖱𝖾𝗆𝗈𝗐𝖾 𝖺𝖽𝗆𝗂𝗇 𝖿𝗋𝗈𝗆 𝗍𝗁𝗂𝗌 𝖻𝗈𝗍"))
 ]
@@ -95,6 +96,10 @@ def get_settings_keyboard(settings=None):
             InlineKeyboardButton(font_style("🔗 Link Pic URL"), callback_data="set_link_pic")
         ],
         [InlineKeyboardButton(font_style(approve_text), callback_data="toggle_auto_approve")],
+        [
+            InlineKeyboardButton(font_style("🔗 Shortener API"), callback_data="set_shortener_api"),
+            InlineKeyboardButton(font_style("🌐 Shortener URL"), callback_data="set_shortener_url")
+        ],
         [InlineKeyboardButton(font_style("🗑️ Remove Pic"), callback_data="remove_pic")],
         [InlineKeyboardButton(font_style("🔙 Back"), callback_data="back_to_start")]
     ])
@@ -203,6 +208,29 @@ async def callback_query_handler(client: Client, callback_query):
             reply_markup=get_settings_keyboard(settings=settings)
         )
 
+    elif data.startswith("renew_bot_"):
+        bot_id = int(data.split("_")[-1])
+        token = await db.create_renewal_token(bot_id, callback_query.from_user.id)
+
+        master_bot = await db.get_bot(running_clients[0].me.id)
+        master_username = master_bot.get('username')
+        renewal_link = f"https://t.me/{master_username}?start=renew_{token}"
+
+        # Shorten renewal link if master shortener is set
+        m_api = await db.get_global_setting("master_shortener_api")
+        m_url = await db.get_global_setting("master_shortener_url")
+        if m_api and m_url:
+            renewal_link = await get_shortlink(renewal_link, m_url, m_api)
+
+        await callback_query.message.reply_text(
+            font_style(
+                f"<b>♻️ Bot Renewal</b>\n\n"
+                f"To renew your bot for another 7 days, please click the button below and follow the instructions.\n\n"
+                f"🔗 <b>Renewal Link:</b> {renewal_link}"
+            ),
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton(font_style("🚀 Renew Now"), url=renewal_link)]])
+        )
+
     elif data == "toggle_auto_approve":
         current_approve = settings.get("auto_approve", False)
         new_approve = not current_approve
@@ -243,7 +271,9 @@ async def callback_query_handler(client: Client, callback_query):
             "set_support_url": "Send the new Support Group URL.",
             "set_channel_url": "Send the new Channel URL.",
             "set_expire_time": "Send the new Invite Link Expire Time (in minutes).",
-            "set_link_pic": "Send the new Link Pic URL or photo."
+            "set_link_pic": "Send the new Link Pic URL or photo.",
+            "set_shortener_api": "Send the new Shortener API Key.",
+            "set_shortener_url": "Send the new Shortener URL (e.g., https://shrinkme.io/api)."
         }
 
         prompt_text = prompts.get(data, "Send the new value.")
@@ -289,6 +319,40 @@ async def start_handler(client: Client, message: Message):
     
     # Handle deep linking (existing code)
     param = args[1]
+
+    if param.startswith("renew_"):
+        if client.me.id != running_clients[0].me.id:
+             return await message.reply(font_style("❌ Renewal can only be done through the Master Bot."))
+
+        token = param[6:]
+        res = await db.verify_renewal_token(token)
+        if not res:
+            return await message.reply(font_style("❌ Invalid or expired renewal token."))
+
+        bot_id = res['bot_id']
+        bot_data = await db.get_bot(bot_id)
+        if not bot_data:
+            return await message.reply(font_style("❌ Bot data not found."))
+
+        new_expiry = datetime.now(timezone.utc) + timedelta(days=7)
+        await db.update_bot_expiry(bot_id, new_expiry)
+
+        # Try to restart the bot if it's not running
+        is_running = False
+        for c in running_clients:
+            if c.me.id == bot_id:
+                is_running = True
+                break
+
+        if not is_running:
+            await start_bot(f"bot_{bot_id}", bot_data['token'])
+
+        return await message.reply(font_style(
+            f"✅ <b>Bot Renewed!</b>\n\n"
+            f"Bot: @{bot_data.get('username')}\n"
+            f"New Expiry: {new_expiry.strftime('%Y-%m-%d %H:%M:%S')} UTC"
+        ))
+
     is_req = False
     if param.startswith("req_"):
         is_req = True
@@ -318,6 +382,14 @@ async def start_handler(client: Client, message: Message):
                 creates_join_request=True,
                 name=link_name
             )
+            invite_link = invite.invite_link
+
+            # Shortening logic
+            short_api = settings.get("shortener_api") or await db.get_global_setting("master_shortener_api")
+            short_url = settings.get("shortener_url") or await db.get_global_setting("master_shortener_url")
+
+            if short_api and short_url:
+                invite_link = await get_shortlink(invite_link, short_url, short_api)
             text = settings.get("btn_text")
             if text:
                 text = font_style(text)
@@ -338,14 +410,14 @@ async def start_handler(client: Client, message: Message):
                     pic,
                     caption=text,
                     reply_markup=InlineKeyboardMarkup(
-                        [[InlineKeyboardButton(btn_name, url=invite.invite_link)]]
+                        [[InlineKeyboardButton(btn_name, url=invite_link)]]
                     )
                 )
             else:
                 sent = await message.reply(
                     text,
                     reply_markup=InlineKeyboardMarkup(
-                        [[InlineKeyboardButton(btn_name, url=invite.invite_link)]]
+                        [[InlineKeyboardButton(btn_name, url=invite_link)]]
                     ),
                     disable_web_page_preview=True
                 )
@@ -356,6 +428,14 @@ async def start_handler(client: Client, message: Message):
                 expire_date=datetime.now(timezone.utc) + timedelta(minutes=expire_time),
                 member_limit=1
             )
+            invite_link = invite.invite_link
+
+            # Shortening logic
+            short_api = settings.get("shortener_api") or await db.get_global_setting("master_shortener_api")
+            short_url = settings.get("shortener_url") or await db.get_global_setting("master_shortener_url")
+
+            if short_api and short_url:
+                invite_link = await get_shortlink(invite_link, short_url, short_api)
             text = settings.get("btn_text")
             if text:
                 text = font_style(text)
@@ -376,14 +456,14 @@ async def start_handler(client: Client, message: Message):
                     pic,
                     caption=text,
                     reply_markup=InlineKeyboardMarkup(
-                        [[InlineKeyboardButton(btn_name, url=invite.invite_link)]]
+                        [[InlineKeyboardButton(btn_name, url=invite_link)]]
                     )
                 )
             else:
                 sent = await message.reply(
                     text,
                     reply_markup=InlineKeyboardMarkup(
-                        [[InlineKeyboardButton(btn_name, url=invite.invite_link)]]
+                        [[InlineKeyboardButton(btn_name, url=invite_link)]]
                     ),
                     disable_web_page_preview=True
                 )
@@ -572,11 +652,70 @@ async def bots_handler(client: Client, message: Message):
         return await message.reply(font_style("No bots cloned yet."))
     
     text = font_style("<b>Cloned Bots:</b>\n\n")
+    now = datetime.now(timezone.utc)
     for i, bot in enumerate(bots, 1):
         username = bot.get('username', 'Unknown')
-        text += font_style(f"{i}. @{username}\n")
+        expiry = bot.get('expiry')
+        status = "✅ Active"
+        if expiry:
+            if expiry.tzinfo is None: expiry = expiry.replace(tzinfo=timezone.utc)
+            if expiry < now: status = "❌ Expired"
+        text += font_style(f"{i}. @{username} - {status}\n")
     
     await message.reply(text)
+
+async def my_bots_handler(client: Client, message: Message):
+    bots = await db.get_owner_bots(message.from_user.id)
+    if not bots:
+        return await message.reply(font_style("You haven't cloned any bots yet."))
+
+    text = font_style("<b>🤖 Your Cloned Bots</b>\n\n")
+    now = datetime.now(timezone.utc)
+    buttons = []
+    for bot in bots:
+        username = bot.get('username', 'Unknown')
+        expiry = bot.get('expiry')
+        status = "✅ Active"
+        if expiry:
+            if expiry.tzinfo is None: expiry = expiry.replace(tzinfo=timezone.utc)
+            if expiry < now: status = "❌ Expired"
+
+        text += font_style(f"<b>Bot:</b> @{username}\n")
+        text += font_style(f"<b>Status:</b> {status}\n")
+        if expiry:
+            text += font_style(f"<b>Expiry:</b> {expiry.strftime('%Y-%m-%d %H:%M:%S')} UTC\n\n")
+
+        buttons.append([InlineKeyboardButton(font_style(f"Renew @{username}"), callback_data=f"renew_bot_{bot['_id']}")])
+
+    await message.reply(text, reply_markup=InlineKeyboardMarkup(buttons))
+
+async def master_settings_handler(client: Client, message: Message):
+    m_api = await db.get_global_setting("master_shortener_api")
+    m_url = await db.get_global_setting("master_shortener_url")
+
+    text = font_style(
+        "<b>🌍 Global Master Settings</b>\n\n"
+        f"<b>Shortener API:</b> <code>{m_api or 'Not Set'}</code>\n"
+        f"<b>Shortener URL:</b> <code>{m_url or 'Not Set'}</code>\n\n"
+        "To update, use:\n"
+        "/set_master_api [key]\n"
+        "/set_master_url [url]"
+    )
+    await message.reply(text)
+
+async def set_master_api_handler(client: Client, message: Message):
+    if len(message.command) < 2:
+        return await message.reply(font_style("Usage: /set_master_api [key]"))
+    val = message.command[1]
+    await db.set_global_setting("master_shortener_api", val)
+    await message.reply(font_style(f"✅ Master Shortener API set to: <code>{val}</code>"))
+
+async def set_master_url_handler(client: Client, message: Message):
+    if len(message.command) < 2:
+        return await message.reply(font_style("Usage: /set_master_url [url]"))
+    val = message.command[1]
+    await db.set_global_setting("master_shortener_url", val)
+    await message.reply(font_style(f"✅ Master Shortener URL set to: <code>{val}</code>"))
 
 # --- Clone & Admin Commands ---
 
@@ -680,6 +819,8 @@ async def settings_input_handler(client: Client, message: Message):
     elif font_style("Channel URL") in prompt: key = "channel_url"
     elif font_style("Expire Time") in prompt: key = "expire_time"
     elif font_style("Link Pic URL") in prompt: key = "link_pic"
+    elif font_style("Shortener API Key") in prompt: key = "shortener_api"
+    elif font_style("Shortener URL") in prompt: key = "shortener_url"
 
     if key:
         value = message.text
@@ -732,6 +873,7 @@ def register_all_handlers(client: Client):
     client.add_handler(MessageHandler(settings_input_handler, filters.reply & filters.private))
     client.add_handler(MessageHandler(settings_handler, filters.command("settings") & filters.private & is_owner))
     client.add_handler(MessageHandler(clone_handler, filters.command("clone") & filters.private))
+    client.add_handler(MessageHandler(my_bots_handler, filters.command("mybots") & filters.private))
     client.add_handler(MessageHandler(add_admin_handler, filters.command("addadmin") & filters.private & is_owner))
     client.add_handler(MessageHandler(rem_admin_handler, filters.command("remadmin") & filters.private & is_owner))
     client.add_handler(MessageHandler(admin_list_handler, filters.command("admin_list") & filters.private & is_owner))
@@ -743,6 +885,9 @@ def register_all_handlers(client: Client):
     client.add_handler(MessageHandler(users_list_handler, filters.command("users") & filters.private & is_admin))
     client.add_handler(MessageHandler(stats_handler, filters.command("stats") & filters.private & is_admin))
     client.add_handler(MessageHandler(bots_handler, filters.command(["bots", "bot"]) & filters.private & is_main_owner))
+    client.add_handler(MessageHandler(master_settings_handler, filters.command("master_settings") & filters.private & is_main_owner))
+    client.add_handler(MessageHandler(set_master_api_handler, filters.command("set_master_api") & filters.private & is_main_owner))
+    client.add_handler(MessageHandler(set_master_url_handler, filters.command("set_master_url") & filters.private & is_main_owner))
 
 async def start_bot(name, bot_token, owner_id=None, username=None, is_master=False):
     try:
@@ -773,9 +918,20 @@ async def main():
     # Start Cloned Bots
     bots = await db.get_all_bots()
     tasks = []
+    now = datetime.now(timezone.utc)
     for bot in bots:
         if bot['token'] == BOT_TOKEN:
             continue
+
+        # Expiry check
+        expiry = bot.get("expiry")
+        if expiry:
+            if expiry.tzinfo is None:
+                expiry = expiry.replace(tzinfo=timezone.utc)
+            if expiry < now:
+                print(f"Skipping expired bot @{bot.get('username')} (ID: {bot.get('_id')})")
+                continue
+
         tasks.append(start_bot(f"bot_{bot['_id']}", bot['token']))
 
     if tasks:
