@@ -26,6 +26,18 @@ class Database:
     async def get_bot_count(self):
         return await self.bots.count_documents({})
 
+    async def get_bot_settings(self, bot_id):
+        bot = await self.get_bot(bot_id)
+        if bot:
+            return bot.get('settings', {})
+        return {}
+
+    async def update_bot_setting(self, bot_id, key, value):
+        await self.bots.update_one(
+            {"_id": bot_id},
+            {"$set": {f"settings.{key}": value}}
+        )
+
     async def add_admin(self, bot_id, admin_id):
         await self.bots.update_one(
             {"_id": bot_id},
