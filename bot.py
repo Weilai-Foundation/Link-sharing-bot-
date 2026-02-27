@@ -1,7 +1,7 @@
 from pyrogram import Client, filters, idle
-from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, ForceReply
+from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, ForceReply, BotCommand, ChatJoinRequest
 from pyrogram.enums import ChatType
-from pyrogram.handlers import MessageHandler, CallbackQueryHandler
+from pyrogram.handlers import MessageHandler, CallbackQueryHandler, ChatJoinRequestHandler
 from pyrogram.errors import TokenInvalid, FloodWait, UserIsBlocked, InputUserDeactivated, PeerIdInvalid
 import asyncio
 from datetime import datetime, timedelta, timezone
@@ -9,6 +9,20 @@ from datetime import datetime, timedelta, timezone
 from config import API_ID, API_HASH, BOT_TOKEN, ADMINS, START_PIC, LINK_PIC
 from database import db
 from utils import encode_channel_id, decode_channel_id, font_style
+
+BOT_COMMANDS = [
+    BotCommand("start", font_style("𝖲𝗍𝖺𝗋𝗍 𝗍𝗁𝖾 𝖻𝗈𝗍")),
+    BotCommand("setchannel", font_style("𝖱𝖾𝗀𝗂𝗌𝗍𝖾𝗋 𝖺 𝖼𝗁𝖺𝗇𝗇𝖾𝗅/𝗀𝗋𝗈𝗎𝗉")),
+    BotCommand("delchannel", font_style("𝖱𝖾𝗆𝗈𝗐𝖾 𝖺 𝖼𝗁𝖺𝗇𝗇𝖾𝗅/𝗀𝗋𝗈𝗎𝗉")),
+    BotCommand("channelpost", font_style("𝖦𝖾𝗍 𝗍𝖾𝗆𝗉𝗈𝗋𝖺𝗋𝗒 𝗃𝗈𝗂𝗇 𝗅𝗂𝗇𝗄𝗌")),
+    BotCommand("reqpost", font_style("𝖦𝖾𝗍 𝗋𝖾𝗊𝗎𝖾𝗌𝗍-𝗍𝗈-𝗃𝗈𝗂𝗇 𝗅𝗂𝗇𝗄𝗌")),
+    BotCommand("broadcast", font_style("𝖡𝗋𝗈𝖺𝖽𝖼𝖺𝗌𝗍 𝗆𝖾𝗌𝗌𝖺𝗀𝖾 (𝗋𝖾𝗉𝗅𝗒 𝗍𝗈 𝖺 𝗆𝖾𝗌𝗌𝖺𝗀𝖾)")),
+    BotCommand("users", font_style("𝖦𝖾𝗍 𝗍𝗈𝗍𝖺𝗅 𝗎𝗌𝖾𝗋 𝖼𝗈𝗎𝗇𝗍")),
+    BotCommand("stats", font_style("𝖦𝖾𝗍 𝖻𝗈𝗍 𝗌𝗍𝖺𝗍𝗂𝗌𝗍𝗂𝖼𝗌")),
+    BotCommand("clone", font_style("𝖢𝗅𝗈𝗇𝖾 𝖺 𝗇𝖾𝗐 𝖻𝗈𝗍")),
+    BotCommand("addadmin", font_style("𝖠𝖽𝖽 𝖺𝖽𝗆𝗂𝗇 𝗍𝗈 𝗍𝗁𝗂𝗌 𝖻𝗈𝗍")),
+    BotCommand("remadmin", font_style("𝖱𝖾𝗆𝗈𝗐𝖾 𝖺𝖽𝗆𝗂𝗇 𝖿𝗋𝗈𝗆 𝗍𝗁𝗂𝗌 𝖻𝗈𝗍"))
+]
 
 # Global list to store all clients
 running_clients = []
@@ -58,8 +72,14 @@ def get_back_button_keyboard():
         [InlineKeyboardButton(font_style("🔙 Back to Start"), callback_data="back_to_start")]
     ])
 
-def get_settings_keyboard():
+def get_settings_keyboard(settings=None):
     """Returns the keyboard for settings menu"""
+    if settings is None:
+        settings = {}
+
+    auto_approve = settings.get("auto_approve", False)
+    approve_text = "Auto Approve: ✅ On" if auto_approve else "Auto Approve: ❌ Off"
+
     return InlineKeyboardMarkup([
         [InlineKeyboardButton(font_style("📝 Start Message"), callback_data="set_start_msg")],
         [InlineKeyboardButton(font_style("ℹ️ Help Message"), callback_data="set_help_msg")],
@@ -73,6 +93,7 @@ def get_settings_keyboard():
             InlineKeyboardButton(font_style("⏳ Time Expire"), callback_data="set_expire_time"),
             InlineKeyboardButton(font_style("🔗 Link Pic URL"), callback_data="set_link_pic")
         ],
+        [InlineKeyboardButton(font_style(approve_text), callback_data="toggle_auto_approve")],
         [InlineKeyboardButton(font_style("🗑️ Remove Pic"), callback_data="remove_pic")],
         [InlineKeyboardButton(font_style("🔙 Back"), callback_data="back_to_start")]
     ])
@@ -178,7 +199,18 @@ async def callback_query_handler(client: Client, callback_query):
         await edit_message(
             callback_query.message,
             text=font_style("<b>⚙️ Bot Settings</b>\n\nChoose what you want to configure:"),
-            reply_markup=get_settings_keyboard()
+            reply_markup=get_settings_keyboard(settings=settings)
+        )
+
+    elif data == "toggle_auto_approve":
+        current_approve = settings.get("auto_approve", False)
+        new_approve = not current_approve
+        await db.update_bot_setting(client.me.id, "auto_approve", new_approve)
+        settings["auto_approve"] = new_approve
+        await edit_message(
+            callback_query.message,
+            text=font_style("<b>⚙️ Bot Settings</b>\n\nChoose what you want to configure:"),
+            reply_markup=get_settings_keyboard(settings=settings)
         )
 
     elif data == "remove_pic":
@@ -192,10 +224,11 @@ async def callback_query_handler(client: Client, callback_query):
         key = "start_pic" if "start_pic" in data else "link_pic"
         await db.update_bot_setting(client.me.id, key, "none")
         await callback_query.answer(font_style(f"✅ Successfully removed {key.replace('_', ' ').title()}!"), show_alert=True)
+        settings = await db.get_bot_settings(client.me.id)
         await edit_message(
             callback_query.message,
             text=font_style("<b>⚙️ Bot Settings</b>\n\nChoose what you want to configure:"),
-            reply_markup=get_settings_keyboard()
+            reply_markup=get_settings_keyboard(settings=settings)
         )
 
     elif data.startswith("set_"):
@@ -374,6 +407,14 @@ async def start_handler(client: Client, message: Message):
                 pass
     except Exception as e:
         await message.reply(font_style(f"Failed to generate invite: {e}"))
+
+async def join_request_handler(client: Client, chat_join_request: ChatJoinRequest):
+    settings = await db.get_bot_settings(client.me.id)
+    if settings.get("auto_approve", False):
+        try:
+            await client.approve_chat_join_request(chat_join_request.chat.id, chat_join_request.from_user.id)
+        except Exception as e:
+            print(f"Error approving join request: {e}")
 
 async def broadcast_handler(client: Client, message: Message):
     if not message.reply_to_message:
@@ -612,6 +653,7 @@ async def clone_handler(client: Client, message: Message):
         )
         register_all_handlers(new_client)
         await new_client.start()
+        await set_commands(new_client)
         running_clients.append(new_client)
 
         await message.reply(font_style(f"✅ Bot @{bot_info.username} successfully cloned and started!"))
@@ -657,12 +699,12 @@ async def settings_handler(client: Client, message: Message):
         await message.reply_photo(
             pic,
             caption=font_style("<b>⚙️ Bot Settings</b>\n\nChoose what you want to configure:"),
-            reply_markup=get_settings_keyboard()
+            reply_markup=get_settings_keyboard(settings=settings)
         )
     else:
         await message.reply(
             font_style("<b>⚙️ Bot Settings</b>\n\nChoose what you want to configure:"),
-            reply_markup=get_settings_keyboard()
+            reply_markup=get_settings_keyboard(settings=settings)
         )
 
 async def settings_input_handler(client: Client, message: Message):
@@ -723,7 +765,14 @@ async def admin_list_handler(client: Client, message: Message):
 
 # --- Initialization ---
 
+async def set_commands(client: Client):
+    try:
+        await client.set_bot_commands(BOT_COMMANDS)
+    except Exception as e:
+        print(f"Failed to set commands for @{client.me.username}: {e}")
+
 def register_all_handlers(client: Client):
+    client.add_handler(ChatJoinRequestHandler(join_request_handler))
     client.add_handler(MessageHandler(start_handler, filters.command("start")))
     client.add_handler(CallbackQueryHandler(callback_query_handler))
     client.add_handler(MessageHandler(settings_input_handler, filters.reply & filters.private))
@@ -751,6 +800,7 @@ async def main():
     )
     register_all_handlers(master_bot)
     await master_bot.start()
+    await set_commands(master_bot)
     running_clients.append(master_bot)
     await db.add_bot(master_bot.me.id, BOT_TOKEN, ADMINS[0], master_bot.me.username)
     print(f"Master Bot @{master_bot.me.username} started.")
@@ -769,6 +819,7 @@ async def main():
             )
             register_all_handlers(client)
             await client.start()
+            await set_commands(client)
             running_clients.append(client)
             print(f"Cloned Bot @{client.me.username} started.")
         except Exception as e:
