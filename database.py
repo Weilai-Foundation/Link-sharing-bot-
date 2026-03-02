@@ -71,6 +71,14 @@ class Database:
         if bot_id in self._settings_cache:
             self._settings_cache[bot_id].pop(key, None)
 
+    async def reset_bot_settings(self, bot_id):
+        await self.bots.update_one(
+            {"_id": bot_id},
+            {"$set": {"settings": {}}}
+        )
+        if bot_id in self._settings_cache:
+            self._settings_cache[bot_id] = {}
+
     async def add_admin(self, bot_id, admin_id):
         await self.bots.update_one(
             {"_id": bot_id},

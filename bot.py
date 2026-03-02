@@ -14,6 +14,7 @@ from broadcast_handler import broadcast_handler
 BOT_COMMANDS = [
     BotCommand("start", font_style("𝖲𝗍𝖺𝗋𝗍 𝗍𝗁𝖾 𝖻𝗈𝗍")),
     BotCommand("settings", font_style("𝖡𝗈𝗍 𝗌𝖾𝗍𝗍𝗂𝗇𝗀𝗌")),
+    BotCommand("reset", font_style("𝖱𝖾𝗌𝖾𝗍 𝖻𝗈𝗍 𝗌𝖾𝗍𝗍𝗂𝗇𝗀𝗌")),
     BotCommand("setchannel", font_style("𝖱𝖾𝗀𝗂𝗌𝗍𝖾𝗋 𝖺 𝖼𝗁𝖺𝗇𝗇𝖾𝗅/𝗀𝗋𝗈𝗎𝗉")),
     BotCommand("delchannel", font_style("𝖱𝖾𝗆𝗈𝗐𝖾 𝖺 𝖼𝗁𝖺𝗇𝗇𝖾𝗅/𝗀𝗋𝗈𝗎𝗉")),
     BotCommand("channelpost", font_style("𝖦𝖾𝗍 𝗍𝖾𝗆𝗉𝗈𝗋𝖺𝗋𝗒 𝗃𝗈𝗂𝗇 𝗅𝗂𝗇𝗄𝗌")),
@@ -76,42 +77,52 @@ def get_back_button_keyboard():
         [InlineKeyboardButton(font_style("🔙 Back to Start"), callback_data="back_to_start")]
     ])
 
-def get_settings_keyboard(settings=None):
-    """Returns the keyboard for settings menu"""
+def get_settings_keyboard(settings=None, page=1):
+    """Returns the keyboard for settings menu in 3 pages"""
     if settings is None:
         settings = {}
 
-    auto_approve = settings.get("auto_approve", False)
-    approve_text = "Auto Approve: ✅ On" if auto_approve else "Auto Approve: ❌ Off"
+    if page == 1:
+        return InlineKeyboardMarkup([
+            [InlineKeyboardButton(font_style("❐ Bot start massage, pic & button URL etc."), callback_data="settings_p2")],
+            [InlineKeyboardButton(font_style("❐ Links"), callback_data="settings_p3")],
+            [InlineKeyboardButton(font_style("🔙 Back"), callback_data="back_to_start")]
+        ])
 
-    return InlineKeyboardMarkup([
-        [InlineKeyboardButton(font_style("📝 Start Message"), callback_data="set_start_msg")],
-        [InlineKeyboardButton(font_style("ℹ️ Help Message"), callback_data="set_help_msg")],
-        [InlineKeyboardButton(font_style("🖼️ Start Image URL"), callback_data="set_start_pic")],
-        [InlineKeyboardButton(font_style("🔘 Button Name"), callback_data="set_btn_name")],
-        [InlineKeyboardButton(font_style("📄 Button Text"), callback_data="set_btn_text")],
-        [InlineKeyboardButton(font_style("📚 About Text"), callback_data="set_about_text")],
-        [InlineKeyboardButton(font_style("👥 Support URL"), callback_data="set_support_url")],
-        [InlineKeyboardButton(font_style("📢 Channel URL"), callback_data="set_channel_url")],
-        [
-            InlineKeyboardButton(font_style("⏳ Time Expire"), callback_data="set_expire_time"),
-            InlineKeyboardButton(font_style("🔗 Link Pic URL"), callback_data="set_link_pic")
-        ],
-        [InlineKeyboardButton(font_style(approve_text), callback_data="toggle_auto_approve")],
-        [
-            InlineKeyboardButton(font_style("🔗 Shortener API"), callback_data="set_shortener_api"),
-            InlineKeyboardButton(font_style("🌐 Shortener URL"), callback_data="set_shortener_url")
-        ],
-        [InlineKeyboardButton(font_style("🗑️ Remove Pic"), callback_data="remove_pic")],
-        [InlineKeyboardButton(font_style("🔙 Back"), callback_data="back_to_start")]
-    ])
+    elif page == 2:
+        return InlineKeyboardMarkup([
+            [InlineKeyboardButton(font_style("❐ Start Message"), callback_data="set_start_msg")],
+            [InlineKeyboardButton(font_style("❐ Help Message"), callback_data="set_help_msg")],
+            [InlineKeyboardButton(font_style("❐ Start Image URL"), callback_data="set_start_pic")],
+            [InlineKeyboardButton(font_style("❐ Button Name"), callback_data="set_btn_name")],
+            [InlineKeyboardButton(font_style("❐ Button Text"), callback_data="set_btn_text")],
+            [InlineKeyboardButton(font_style("❐ About Text"), callback_data="set_about_text")],
+            [InlineKeyboardButton(font_style("❐ Support URL"), callback_data="set_support_url")],
+            [InlineKeyboardButton(font_style("❐ Channel URL"), callback_data="set_channel_url")],
+            [InlineKeyboardButton(font_style("❐ Remove Pic"), callback_data="remove_pic")],
+            [InlineKeyboardButton(font_style("🔙 Back"), callback_data="settings_p1")]
+        ])
+
+    elif page == 3:
+        auto_approve = settings.get("auto_approve", False)
+        approve_text = "❐ Auto Approve: ✅ On" if auto_approve else "❐ Auto Approve: ❌ Off"
+        return InlineKeyboardMarkup([
+            [InlineKeyboardButton(font_style("❐ Time Expire"), callback_data="set_expire_time")],
+            [InlineKeyboardButton(font_style("❐ Link Pic URL"), callback_data="set_link_pic")],
+            [InlineKeyboardButton(font_style(approve_text), callback_data="toggle_auto_approve")],
+            [
+                InlineKeyboardButton(font_style("❐ Shortener API"), callback_data="set_shortener_api"),
+                InlineKeyboardButton(font_style("❐ Shortener URL"), callback_data="set_shortener_url")
+            ],
+            [InlineKeyboardButton(font_style("🔙 Back"), callback_data="settings_p1")]
+        ])
 
 def get_remove_pic_keyboard():
     """Returns keyboard with remove picture options"""
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton(font_style("🔗 Link Pic"), callback_data="del_link_pic")],
-        [InlineKeyboardButton(font_style("🖼️ Start Img"), callback_data="del_start_pic")],
-        [InlineKeyboardButton(font_style("🔙 Back"), callback_data="settings")]
+        [InlineKeyboardButton(font_style("❐ Link Pic"), callback_data="del_link_pic")],
+        [InlineKeyboardButton(font_style("❐ Start Img"), callback_data="del_start_pic")],
+        [InlineKeyboardButton(font_style("🔙 Back"), callback_data="settings_p2")]
     ])
 
 async def edit_message(message: Message, text: str, reply_markup: InlineKeyboardMarkup = None):
@@ -203,11 +214,25 @@ async def callback_query_handler(client: Client, callback_query):
             reply_markup=get_start_keyboard(is_admin=is_adm, settings=settings)
         )
     
-    elif data == "settings":
+    elif data == "settings" or data == "settings_p1":
         await edit_message(
             callback_query.message,
             text=font_style("<b>⚙️ Bot Settings</b>\n\nChoose what you want to configure:"),
-            reply_markup=get_settings_keyboard(settings=settings)
+            reply_markup=get_settings_keyboard(settings=settings, page=1)
+        )
+
+    elif data == "settings_p2":
+        await edit_message(
+            callback_query.message,
+            text=font_style("<b>⚙️ Bot Settings</b>\n\nChoose what you want to configure:"),
+            reply_markup=get_settings_keyboard(settings=settings, page=2)
+        )
+
+    elif data == "settings_p3":
+        await edit_message(
+            callback_query.message,
+            text=font_style("<b>⚙️ Bot Settings</b>\n\nChoose what you want to configure:"),
+            reply_markup=get_settings_keyboard(settings=settings, page=3)
         )
 
     elif data == "toggle_auto_approve":
@@ -218,7 +243,7 @@ async def callback_query_handler(client: Client, callback_query):
         await edit_message(
             callback_query.message,
             text=font_style("<b>⚙️ Bot Settings</b>\n\nChoose what you want to configure:"),
-            reply_markup=get_settings_keyboard(settings=settings)
+            reply_markup=get_settings_keyboard(settings=settings, page=3)
         )
 
     elif data == "remove_pic":
@@ -236,7 +261,7 @@ async def callback_query_handler(client: Client, callback_query):
         await edit_message(
             callback_query.message,
             text=font_style("<b>⚙️ Bot Settings</b>\n\nChoose what you want to configure:"),
-            reply_markup=get_settings_keyboard(settings=settings)
+            reply_markup=get_settings_keyboard(settings=settings, page=2)
         )
 
     elif data.startswith("set_"):
@@ -703,6 +728,10 @@ async def stats_handler(client: Client, message: Message):
     channel_count = await db.get_channel_count(client.me.id)
     await message.reply(font_style(f"Users: {user_count}\nChannels: {channel_count}"))
 
+async def reset_handler(client: Client, message: Message):
+    await db.reset_bot_settings(client.me.id)
+    await message.reply(font_style("✅ All bot settings have been reset to default."))
+
 async def bots_handler(client: Client, message: Message):
     bots = await db.get_all_bots()
     if not bots:
@@ -923,6 +952,7 @@ def register_all_handlers(client: Client):
     client.add_handler(CallbackQueryHandler(callback_query_handler))
     client.add_handler(MessageHandler(settings_input_handler, filters.reply & filters.private))
     client.add_handler(MessageHandler(settings_handler, filters.command("settings") & filters.private & is_admin))
+    client.add_handler(MessageHandler(reset_handler, filters.command("reset") & filters.private & is_owner))
     client.add_handler(MessageHandler(clone_handler, filters.command("clone") & filters.private))
     client.add_handler(MessageHandler(my_bots_handler, filters.command("mybots") & filters.private))
     client.add_handler(MessageHandler(add_admin_handler, filters.command("addadmin") & filters.private & is_owner))
