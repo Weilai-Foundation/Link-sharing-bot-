@@ -13,6 +13,7 @@ from broadcast_handler import broadcast_handler
 
 BOT_COMMANDS = [
     BotCommand("start", font_style("𝖲𝗍𝖺𝗋𝗍 𝗍𝗁𝖾 𝖻𝗈𝗍")),
+    BotCommand("settings", font_style("𝖡𝗈𝗍 𝗌𝖾𝗍𝗍𝗂𝗇𝗀𝗌")),
     BotCommand("setchannel", font_style("𝖱𝖾𝗀𝗂𝗌𝗍𝖾𝗋 𝖺 𝖼𝗁𝖺𝗇𝗇𝖾𝗅/𝗀𝗋𝗈𝗎𝗉")),
     BotCommand("delchannel", font_style("𝖱𝖾𝗆𝗈𝗐𝖾 𝖺 𝖼𝗁𝖺𝗇𝗇𝖾𝗅/𝗀𝗋𝗈𝗎𝗉")),
     BotCommand("channelpost", font_style("𝖦𝖾𝗍 𝗍𝖾𝗆𝗉𝗈𝗋𝖺𝗋𝗒 𝗃𝗈𝗂𝗇 𝗅𝗂𝗇𝗄𝗌")),
@@ -209,29 +210,6 @@ async def callback_query_handler(client: Client, callback_query):
             reply_markup=get_settings_keyboard(settings=settings)
         )
 
-    elif data.startswith("renew_bot_"):
-        bot_id = int(data.split("_")[-1])
-        token = await db.create_renewal_token(bot_id, callback_query.from_user.id)
-
-        master_bot = await db.get_bot(running_clients[0].me.id)
-        master_username = master_bot.get('username')
-        renewal_link = f"https://t.me/{master_username}?start=renew_{token}"
-
-        # Shorten renewal link if master shortener is set
-        m_api = await db.get_global_setting("master_shortener_api")
-        m_url = await db.get_global_setting("master_shortener_url")
-        if m_api and m_url:
-            renewal_link = await get_shortlink(renewal_link, m_url, m_api)
-
-        await callback_query.message.reply_text(
-            font_style(
-                f"<b>♻️ Bot Renewal</b>\n\n"
-                f"To renew your bot for another 7 days, please click the button below and follow the instructions.\n\n"
-                f"🔗 <b>Renewal Link:</b> {renewal_link}"
-            ),
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton(font_style("🚀 Renew Now"), url=renewal_link)]])
-        )
-
     elif data == "toggle_auto_approve":
         current_approve = settings.get("auto_approve", False)
         new_approve = not current_approve
@@ -292,15 +270,10 @@ async def callback_query_handler(client: Client, callback_query):
 
         text = font_style("<b>🤖 Cloned Bots Management</b>\n\nSelect a bot to view details and manage it:")
         buttons = []
-        now = datetime.now(timezone.utc)
         for bot in cloned_bots:
             username = bot.get('username', 'Unknown')
-            expiry = bot.get('expiry')
             is_deactivated = bot.get('is_deactivated', False)
             status_icon = "❌" if is_deactivated else "✅"
-            if expiry:
-                if expiry.tzinfo is None: expiry = expiry.replace(tzinfo=timezone.utc)
-                if expiry < now and not is_deactivated: status_icon = "⌛"
             buttons.append([InlineKeyboardButton(font_style(f"{status_icon} @{username}"), callback_data=f"view_bot_{bot['_id']}")])
         await edit_message(callback_query.message, text, reply_markup=InlineKeyboardMarkup(buttons))
 
@@ -315,23 +288,17 @@ async def callback_query_handler(client: Client, callback_query):
 
         user_count = await db.get_user_count(bot_id)
         channel_count = await db.get_channel_count(bot_id)
-        now = datetime.now(timezone.utc)
-        expiry = bot.get('expiry')
         is_deactivated = bot.get('is_deactivated', False)
 
         status = "✅ Active"
         if is_deactivated:
             status = "❌ Deactivated"
-        elif expiry:
-            if expiry.tzinfo is None: expiry = expiry.replace(tzinfo=timezone.utc)
-            if expiry < now: status = "⌛ Expired"
 
         text = font_style(
             f"<b>🤖 Bot Information: @{bot.get('username', 'Unknown')}</b>\n\n"
             f"<b>🆔 Bot ID:</b> <code>{bot_id}</code>\n"
             f"<b>👤 Owner ID:</b> <code>{bot.get('owner_id')}</code>\n"
             f"<b>📊 Status:</b> {status}\n"
-            f"<b>📅 Expiry:</b> {expiry.strftime('%Y-%m-%d %H:%M:%S') if expiry else 'Never'} UTC\n"
             f"<b>👥 Total Users:</b> {user_count}\n"
             f"<b>📢 Total Channels:</b> {channel_count}"
         )
@@ -343,7 +310,11 @@ async def callback_query_handler(client: Client, callback_query):
             buttons.append([InlineKeyboardButton(font_style(toggle_text), callback_data=f"toggle_bot_{bot_id}")])
 
         buttons.append([InlineKeyboardButton(font_style("🔙 Back"), callback_data="bots_back")])
-        await edit_message(callback_query.message, text, reply_markup=InlineKeyboardMarkup(buttons))
+        await edit_message(
+            callback_query.message,
+            text=text,
+            reply_markup=InlineKeyboardMarkup(buttons)
+        )
 
     elif data.startswith("toggle_bot_"):
         if callback_query.from_user.id not in ADMINS or client.me.id != MASTER_BOT_ID:
@@ -366,16 +337,7 @@ async def callback_query_handler(client: Client, callback_query):
                     break
             alert_msg = "Bot deactivated and stopped."
         else:  # Activated
-            expiry = bot.get('expiry')
-            now = datetime.now(timezone.utc)
-            if expiry:
-                if expiry.tzinfo is None: expiry = expiry.replace(tzinfo=timezone.utc)
-                if expiry < now:
-                    alert_msg = "Bot expiry is past. Cannot start."
-                else:
-                    await start_bot(f"bot_{bot_id}", bot['token'])
-            else:
-                await start_bot(f"bot_{bot_id}", bot['token'])
+            await start_bot(f"bot_{bot_id}", bot['token'])
 
         await callback_query.answer(font_style(alert_msg), show_alert=True)
 
@@ -383,23 +345,17 @@ async def callback_query_handler(client: Client, callback_query):
         bot = await db.get_bot(bot_id)
         user_count = await db.get_user_count(bot_id)
         channel_count = await db.get_channel_count(bot_id)
-        now = datetime.now(timezone.utc)
-        expiry = bot.get('expiry')
         is_deactivated = bot.get('is_deactivated', False)
 
         status = "✅ Active"
         if is_deactivated:
             status = "❌ Deactivated"
-        elif expiry:
-            if expiry.tzinfo is None: expiry = expiry.replace(tzinfo=timezone.utc)
-            if expiry < now: status = "⌛ Expired"
 
         text = font_style(
             f"<b>🤖 Bot Information: @{bot.get('username', 'Unknown')}</b>\n\n"
             f"<b>🆔 Bot ID:</b> <code>{bot_id}</code>\n"
             f"<b>👤 Owner ID:</b> <code>{bot.get('owner_id')}</code>\n"
             f"<b>📊 Status:</b> {status}\n"
-            f"<b>📅 Expiry:</b> {expiry.strftime('%Y-%m-%d %H:%M:%S') if expiry else 'Never'} UTC\n"
             f"<b>👥 Total Users:</b> {user_count}\n"
             f"<b>📢 Total Channels:</b> {channel_count}"
         )
@@ -418,17 +374,22 @@ async def callback_query_handler(client: Client, callback_query):
 async def start_handler(client: Client, message: Message):
     await db.update_user(client.me.id, message.from_user.id, message.from_user.first_name)
     args = message.text.split(" ", 1)
-    settings = await db.get_bot_settings(client.me.id)
-    start_text = settings.get("start_msg")
-    if start_text:
-        start_text = font_style(start_text)
-    else:
-        start_text = font_style("<b><blockquote>Bakka {mention}!\n\nI’m the Channel Link Bot — I create smart redirect links for your Telegram channels to help avoid copyright problems and keep things safe.</blockquote></b>")
-    start_text = start_text.format(mention=message.from_user.mention)
+
+    is_adm = await db.is_admin(client.me.id, message.from_user.id, ADMINS)
     
     if len(args) == 1:
+        if is_adm:
+            return await settings_handler(client, message)
+
+        settings = await db.get_bot_settings(client.me.id)
+        start_text = settings.get("start_msg")
+        if start_text:
+            start_text = font_style(start_text)
+        else:
+            start_text = font_style("<b><blockquote>Bakka {mention}!\n\nI’m the Channel Link Bot — I create smart redirect links for your Telegram channels to help avoid copyright problems and keep things safe.</blockquote></b>")
+        start_text = start_text.format(mention=message.from_user.mention)
+
         # Main start message with About and Help buttons
-        is_adm = await db.is_admin(client.me.id, message.from_user.id, ADMINS)
         pic = settings.get("start_pic", START_PIC)
         if pic == "none":
             pic = None
@@ -447,39 +408,7 @@ async def start_handler(client: Client, message: Message):
     
     # Handle deep linking (existing code)
     param = args[1]
-
-    if param.startswith("renew_"):
-        if client.me.id != running_clients[0].me.id:
-             return await message.reply(font_style("❌ Renewal can only be done through the Master Bot."))
-
-        token = param[6:]
-        res = await db.verify_renewal_token(token)
-        if not res:
-            return await message.reply(font_style("❌ Invalid or expired renewal token."))
-
-        bot_id = res['bot_id']
-        bot_data = await db.get_bot(bot_id)
-        if not bot_data:
-            return await message.reply(font_style("❌ Bot data not found."))
-
-        new_expiry = datetime.now(timezone.utc) + timedelta(days=7)
-        await db.update_bot_expiry(bot_id, new_expiry)
-
-        # Try to restart the bot if it's not running
-        is_running = False
-        for c in running_clients:
-            if c.me.id == bot_id:
-                is_running = True
-                break
-
-        if not is_running:
-            await start_bot(f"bot_{bot_id}", bot_data['token'])
-
-        return await message.reply(font_style(
-            f"✅ <b>Bot Renewed!</b>\n\n"
-            f"Bot: @{bot_data.get('username')}\n"
-            f"New Expiry: {new_expiry.strftime('%Y-%m-%d %H:%M:%S')} UTC"
-        ))
+    settings = await db.get_bot_settings(client.me.id)
 
     is_req = False
     if param.startswith("req_"):
@@ -786,17 +715,11 @@ async def bots_handler(client: Client, message: Message):
     text = font_style("<b>🤖 Cloned Bots Management</b>\n\nSelect a bot to view details and manage it:")
 
     buttons = []
-    now = datetime.now(timezone.utc)
     for bot in cloned_bots:
         username = bot.get('username', 'Unknown')
-        expiry = bot.get('expiry')
         is_deactivated = bot.get('is_deactivated', False)
 
         status_icon = "❌" if is_deactivated else "✅"
-        if expiry:
-            if expiry.tzinfo is None: expiry = expiry.replace(tzinfo=timezone.utc)
-            if expiry < now and not is_deactivated:
-                status_icon = "⌛"
 
         buttons.append([InlineKeyboardButton(font_style(f"{status_icon} @{username}"), callback_data=f"view_bot_{bot['_id']}")])
     
@@ -808,24 +731,14 @@ async def my_bots_handler(client: Client, message: Message):
         return await message.reply(font_style("You haven't cloned any bots yet."))
 
     text = font_style("<b>🤖 Your Cloned Bots</b>\n\n")
-    now = datetime.now(timezone.utc)
-    buttons = []
     for bot in bots:
         username = bot.get('username', 'Unknown')
-        expiry = bot.get('expiry')
         status = "✅ Active"
-        if expiry:
-            if expiry.tzinfo is None: expiry = expiry.replace(tzinfo=timezone.utc)
-            if expiry < now: status = "❌ Expired"
 
         text += font_style(f"<b>Bot:</b> @{username}\n")
-        text += font_style(f"<b>Status:</b> {status}\n")
-        if expiry:
-            text += font_style(f"<b>Expiry:</b> {expiry.strftime('%Y-%m-%d %H:%M:%S')} UTC\n\n")
+        text += font_style(f"<b>Status:</b> {status}\n\n")
 
-        buttons.append([InlineKeyboardButton(font_style(f"Renew @{username}"), callback_data=f"renew_bot_{bot['_id']}")])
-
-    await message.reply(text, reply_markup=InlineKeyboardMarkup(buttons))
+    await message.reply(text)
 
 async def master_settings_handler(client: Client, message: Message):
     m_api = await db.get_global_setting("master_shortener_api")
@@ -1009,7 +922,7 @@ def register_all_handlers(client: Client):
     client.add_handler(MessageHandler(start_handler, filters.command("start")))
     client.add_handler(CallbackQueryHandler(callback_query_handler))
     client.add_handler(MessageHandler(settings_input_handler, filters.reply & filters.private))
-    client.add_handler(MessageHandler(settings_handler, filters.command("settings") & filters.private & is_owner))
+    client.add_handler(MessageHandler(settings_handler, filters.command("settings") & filters.private & is_admin))
     client.add_handler(MessageHandler(clone_handler, filters.command("clone") & filters.private))
     client.add_handler(MessageHandler(my_bots_handler, filters.command("mybots") & filters.private))
     client.add_handler(MessageHandler(add_admin_handler, filters.command("addadmin") & filters.private & is_owner))
@@ -1058,7 +971,6 @@ async def main():
     # Start Cloned Bots
     bots = await db.get_all_bots()
     tasks = []
-    now = datetime.now(timezone.utc)
     for bot in bots:
         if bot['token'] == BOT_TOKEN:
             continue
@@ -1066,15 +978,6 @@ async def main():
         if bot.get('is_deactivated', False):
             print(f"Skipping deactivated bot @{bot.get('username')} (ID: {bot.get('_id')})")
             continue
-
-        # Expiry check
-        expiry = bot.get("expiry")
-        if expiry:
-            if expiry.tzinfo is None:
-                expiry = expiry.replace(tzinfo=timezone.utc)
-            if expiry < now:
-                print(f"Skipping expired bot @{bot.get('username')} (ID: {bot.get('_id')})")
-                continue
 
         tasks.append(start_bot(f"bot_{bot['_id']}", bot['token']))
 
