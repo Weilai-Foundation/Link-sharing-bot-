@@ -84,7 +84,7 @@ def get_settings_keyboard(settings=None, page=1):
 
     if page == 1:
         return InlineKeyboardMarkup([
-            [InlineKeyboardButton(font_style("❐ Bot start massage, pic & button URL etc."), callback_data="settings_p2")],
+            [InlineKeyboardButton(font_style("❐ Bot Settings"), callback_data="settings_p2")],
             [InlineKeyboardButton(font_style("❐ Links"), callback_data="settings_p3")],
             [InlineKeyboardButton(font_style("🔙 Back"), callback_data="back_to_start")]
         ])
