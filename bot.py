@@ -1,9 +1,9 @@
-from pyrogram import Client, filters, idle
+qfrom pyrogram import Client, filters, idle
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, ForceReply, BotCommand, ChatJoinRequest
 from pyrogram.enums import ChatType
 from pyrogram.handlers import MessageHandler, CallbackQueryHandler, ChatJoinRequestHandler
 from pyrogram.errors import TokenInvalid, FloodWait, UserIsBlocked, InputUserDeactivated, PeerIdInvalid
-import asyncio
+from web import asyncio
 from datetime import datetime, timedelta, timezone
 
 from config import API_ID, API_HASH, BOT_TOKEN, ADMINS, START_PIC, LINK_PIC
