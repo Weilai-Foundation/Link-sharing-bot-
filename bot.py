@@ -1,4 +1,4 @@
-qfrom pyrogram import Client, filters, idle
+from pyrogram import Client, filters, idle
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, ForceReply, BotCommand, ChatJoinRequest
 from pyrogram.enums import ChatType
 from pyrogram.handlers import MessageHandler, CallbackQueryHandler, ChatJoinRequestHandler
